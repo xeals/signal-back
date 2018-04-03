@@ -81,21 +81,16 @@ impl BackupFile {
         let mut frame = Vec::with_capacity(frame_length as usize);
         header_f.read_to_end(&mut frame)?;
 
-        // Here the Java version initialises the MAC decoder and compares it
-        // using some inner working of how Java handles these things. Long story
-        // short, Rust doesn't do that, so we can't verify anything in this
-        // step.
+        let _len = frame.len();
+        let their_mac = frame.split_off(_len - 10);
 
-        // let _len = frame.len();
-        // let their_mac = frame.split_off(_len - 10);
+        self.mac.reset();
+        self.mac.input(&frame);
+        let our_mac = self.mac.result();
 
-        // self.mac.reset();
-        // self.mac.input(&frame);
-        // let our_mac = self.mac.result();
-
-        // if MacResult::new(&their_mac) != our_mac {
-        //     Err(Error::new("Bad MAC"))?
-        // }
+        if MacResult::new(&their_mac) == our_mac {
+            Err(Error::new("Bad MAC"))?
+        }
 
         let c = self.counter;
         util::u32_into_vec(&mut self.iv, c);
