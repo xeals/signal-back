@@ -1,5 +1,6 @@
 use std::io;
 
+#[allow(dead_code)]
 pub type Result<T> = io::Result<T>;
 
 pub struct Error(&'static str);
