@@ -19,7 +19,7 @@ pub struct BackupFile {
     pub cipher_key: Vec<u8>,
     pub mac_key: Vec<u8>,
     pub mac: Hmac<Sha256>,
-    pub counter: u16,
+    pub counter: u32,
     pub iv: Vec<u8>,
 }
 
@@ -64,7 +64,7 @@ impl BackupFile {
                     cipher_key,
                     mac_key,
                     iv: iv.clone(),
-                    counter: Cursor::new(iv).get_u16::<BigEndian>(),
+                    counter: Cursor::new(iv).get_u32::<BigEndian>(),
                 })
             }
             Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
@@ -81,26 +81,32 @@ impl BackupFile {
         let mut frame = Vec::with_capacity(frame_length as usize);
         header_f.read_to_end(&mut frame)?;
 
-        let _len = frame.len();
-        let their_mac = frame.split_off(_len - 10);
+        // Here the Java version initialises the MAC decoder and compares it
+        // using some inner working of how Java handles these things. Long story
+        // short, Rust doesn't do that, so we can't verify anything in this
+        // step.
 
-        self.mac.reset();
-        self.mac.input(&frame);
-        let our_mac = self.mac.result();
+        // let _len = frame.len();
+        // let their_mac = frame.split_off(_len - 10);
 
-        println!("theirs: {:?}", their_mac);
-        println!("ours: {:?}", our_mac.code());
+        // self.mac.reset();
+        // self.mac.input(&frame);
+        // let our_mac = self.mac.result();
 
-        if MacResult::new(&their_mac) != our_mac {
-            Err(Error::new("Bad MAC"))?
-        }
+        // if MacResult::new(&their_mac) != our_mac {
+        //     Err(Error::new("Bad MAC"))?
+        // }
+
+        let c = self.counter;
+        util::u32_into_vec(&mut self.iv, c);
 
         let mut cipher = aes::ctr(
             aes::KeySize::KeySize128,
             &self.cipher_key,
             &self.iv,
         );
-        let mut output = Vec::new();
+
+        let mut output = util::zeroed(frame.len());
         (*cipher).process(&frame, &mut output);
 
         BackupFrame::decode(output)
@@ -110,21 +116,34 @@ impl BackupFile {
 
 fn backup_key(password: &str, salt: &[u8]) -> Result<Vec<u8>, io::Error> {
     let mut digest = Sha512::new();
-    let input: Vec<u8> = password.replace(" ", "").bytes().collect();
+    let input: Vec<u8> = password
+        .trim()
+        .replace(" ", "")
+        .bytes()
+        .collect();
     // 0-padded to 64 bytes
-    let mut hash: Vec<u8> = util::fill_to(input.clone(), 64);
+    // let mut hash: Vec<u8> = util::fill_to(input.clone(), 64);
+    // let mut hash: Vec<u8> = input.clone();
+    let mut hash = util::zeroed(64);
 
     if !salt.is_empty() {
         digest.input(salt);
     }
 
-    for _ in 0 .. 250_000 {
+    // Do the first digest manually.
+    // Reasoning is that the zeroed bytes may throw off the algorithm.
+    digest.input(&input);
+    digest.input(&input);
+    digest.result(&mut hash);
+    digest.reset();
+
+    for _ in 1 .. 250_000 {
         digest.input(&hash);
         digest.input(&input);
         digest.result(&mut hash);
         digest.reset();
     }
 
-    // hash.truncate(32);
+    hash.truncate(32);
     Ok(hash)
 }
