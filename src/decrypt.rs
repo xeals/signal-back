@@ -23,18 +23,34 @@ pub struct BackupFile {
     pub iv: Vec<u8>,
 }
 
+/// A backup is composed of the following:
+///
+/// + 4 bytes denoting the file header length (as a `u32`)
+/// + X bytes, for the header
+///   + The header contains the IV and salt for the encrypted backup
+/// + X frames, composed of the following:
+///   + 4 bytes denoting the frame length
+///   + X bytes for the encoded frame itself
+///   + 10 bytes for the original MAC of the encoded frame
 impl BackupFile {
     pub fn new(p: &str, password: &str) -> io::Result<Self> {
         let mut f = Cursor::new(::std::fs::read(p)?);
+        println!("len: {}", f.get_ref().len());
+        println!("start of file: {:?}", &f.get_ref()[..8]);
 
         let mut header_length_bytes = [0u8; 4];
         f.read_exact(&mut header_length_bytes)?;
 
         let header_length =
             Cursor::new(header_length_bytes).get_u32::<BigEndian>();
+        println!("header: {}", header_length);
         let mut header_frame = Vec::with_capacity(header_length as usize);
         let mut header_f = Read::take(f.clone(), header_length.into());
         header_f.read_to_end(&mut header_frame)?;
+        println!("start of header: {:?}", &header_frame[..8]);
+
+        use std::io::BufRead;
+        f.consume(header_length as usize);
 
         match BackupFrame::decode(header_frame) {
             Ok(frame) => {
@@ -72,14 +88,18 @@ impl BackupFile {
     }
 
     pub fn frame(&mut self) -> io::Result<BackupFrame> {
+        println!("start of file: {:?}", &self.file.get_ref()[..8]);
         let mut length = [0u8; 4];
         self.file.read_exact(&mut length)?;
 
-        let frame_length = Cursor::new(length).get_u16::<BigEndian>();
+        let frame_length = Cursor::new(length).get_u32::<BigEndian>();
         let mut header_f = Read::take(self.file.clone(), frame_length.into());
+        println!("frame len: {}", frame_length);
 
         let mut frame = Vec::with_capacity(frame_length as usize);
         header_f.read_to_end(&mut frame)?;
+        println!("len: {}", frame.len());
+        println!("start of frame: {:?}", &frame[..8]);
 
         let _len = frame.len();
         let their_mac = frame.split_off(_len - 10);
@@ -92,7 +112,7 @@ impl BackupFile {
             Err(Error::new("Bad MAC"))?
         }
 
-        let c = self.counter;
+        let c = self.counter + 1;
         util::u32_into_vec(&mut self.iv, c);
 
         let mut cipher = aes::ctr(
@@ -101,8 +121,28 @@ impl BackupFile {
             &self.iv,
         );
 
+        // let cipher_dec = ::crypto::aessafe::AesSafe128EncryptorX8::new(&self.cipher_key);
+        // let mut cipher = ::crypto::blockmodes::CtrModeX8::new(cipher_dec, &self.iv);
+
+        // let cipher_dec = ::crypto::aesni::AesNiEncryptor::new(aes::KeySize::KeySize128, &self.cipher_key);
+        // let mut cipher = ::crypto::blockmodes::CtrMode::new(cipher_dec, self.iv.clone());
+
         let mut output = util::zeroed(frame.len());
         (*cipher).process(&frame, &mut output);
+
+        // use crypto::symmetriccipher::Decryptor;
+        // use crypto::symmetriccipher::SynchronousStreamCipher;
+        // let _ = cipher
+        //     .decrypt(
+        //         &mut ::crypto::buffer::RefReadBuffer::new(&frame),
+        //         &mut ::crypto::buffer::RefWriteBuffer::new(&mut output),
+        //         true,
+        //     )
+        //     // .process(&frame, &mut output)
+        //     .map_err(|e| {
+        //         io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", e))
+        //     })?
+        //     ;
 
         BackupFrame::decode(output)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
