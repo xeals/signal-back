@@ -5,6 +5,12 @@ pub fn array_as_u32(array: &[u8; 4]) -> u32 {
 }
 
 #[allow(dead_code)]
+pub fn vec_as_u32(array: &[u8]) -> u32 {
+    u32::from(array[0]) << 24 | u32::from(array[1]) << 16
+        | u32::from(array[2]) << 8 | u32::from(array[3])
+}
+
+#[allow(dead_code)]
 pub fn u32_as_vec(n: u32) -> Vec<u8> {
     let mut arr = Vec::with_capacity(4);
     arr[0] = (n >> 24) as u8;
@@ -33,4 +39,15 @@ pub fn fill_to(v: Vec<u8>, length: usize) -> Vec<u8> {
 /// Returns a zeroed Vec to the specified length.
 pub fn zeroed(len: usize) -> Vec<u8> {
     ::std::iter::repeat(0).take(len).collect()
+}
+
+pub trait VecExt {
+    fn chew(&mut self, n: usize) -> Self;
+}
+
+impl<T> VecExt for Vec<T>
+where
+    T: Clone,
+{
+    fn chew(&mut self, n: usize) -> Self { self.drain(.. n).collect() }
 }
