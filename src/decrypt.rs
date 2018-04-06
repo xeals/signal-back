@@ -12,10 +12,10 @@ use prost::Message;
 use error::Error;
 use hkdf3;
 use signal::BackupFrame;
-use util;
+use util::{self, VecExt};
 
 pub struct BackupFile {
-    pub file: Cursor<Vec<u8>>,
+    pub file: Vec<u8>,
     pub cipher_key: Vec<u8>,
     pub mac_key: Vec<u8>,
     pub mac: Hmac<Sha256>,
@@ -34,23 +34,16 @@ pub struct BackupFile {
 ///   + 10 bytes for the original MAC of the encoded frame
 impl BackupFile {
     pub fn new(p: &str, password: &str) -> io::Result<Self> {
-        let mut f = Cursor::new(::std::fs::read(p)?);
-        println!("len: {}", f.get_ref().len());
-        println!("start of file: {:?}", &f.get_ref()[..8]);
+        let mut f: Vec<u8> = ::std::fs::read(p)?;
+        println!("file length: {}", f.len());
+        println!("start of file: {:?}", &f[.. 8]);
 
-        let mut header_length_bytes = [0u8; 4];
-        f.read_exact(&mut header_length_bytes)?;
+        let header_length_bytes = f.chew(4);
+        let header_length = util::vec_as_u32(&header_length_bytes);
+        println!("header length: {}", header_length);
 
-        let header_length =
-            Cursor::new(header_length_bytes).get_u32::<BigEndian>();
-        println!("header: {}", header_length);
-        let mut header_frame = Vec::with_capacity(header_length as usize);
-        let mut header_f = Read::take(f.clone(), header_length.into());
-        header_f.read_to_end(&mut header_frame)?;
-        println!("start of header: {:?}", &header_frame[..8]);
-
-        use std::io::BufRead;
-        f.consume(header_length as usize);
+        let header_frame = f.chew(header_length as usize);
+        println!("start of header: {:?}", &header_frame[.. 8]);
 
         match BackupFrame::decode(header_frame) {
             Ok(frame) => {
@@ -74,6 +67,10 @@ impl BackupFile {
 
                 assert_eq!(mac_key.len(), cipher_key.len());
 
+                println!("backup key: {:?}", key);
+                println!("cipher key: {:?}", cipher_key);
+                println!("mac key: {:?}", mac_key);
+
                 Ok(BackupFile {
                     file: f,
                     mac: Hmac::new(Sha256::new(), &mac_key),
@@ -87,22 +84,19 @@ impl BackupFile {
         }
     }
 
-    pub fn frame(&mut self) -> io::Result<BackupFrame> {
-        println!("start of file: {:?}", &self.file.get_ref()[..8]);
-        let mut length = [0u8; 4];
-        self.file.read_exact(&mut length)?;
+    pub fn next_frame(&mut self) -> io::Result<BackupFrame> {
+        println!("start of frame: {:?}", &self.file[.. 8]);
 
-        let frame_length = Cursor::new(length).get_u32::<BigEndian>();
-        let mut header_f = Read::take(self.file.clone(), frame_length.into());
-        println!("frame len: {}", frame_length);
+        let length = self.file.chew(4);
+        let frame_length = util::vec_as_u32(&length);
+        println!("frame length: {}", frame_length);
 
-        let mut frame = Vec::with_capacity(frame_length as usize);
-        header_f.read_to_end(&mut frame)?;
-        println!("len: {}", frame.len());
-        println!("start of frame: {:?}", &frame[..8]);
+        let mut frame = self.file.chew(frame_length as usize);
+        println!("start of frame: {:?}", &frame[.. 8]);
 
         let _len = frame.len();
         let their_mac = frame.split_off(_len - 10);
+        println!("remaining frame: {:?}", frame);
 
         self.mac.reset();
         self.mac.input(&frame);
@@ -112,8 +106,13 @@ impl BackupFile {
             Err(Error::new("Bad MAC"))?
         }
 
-        let c = self.counter + 1;
+        let c = self.counter;
         util::u32_into_vec(&mut self.iv, c);
+        self.counter = self.counter + 1;
+
+        // assert_eq!(self.iv, [217, 193, 26, 204, 189, 32, 214, 84, 232, 116, 142, 68, 245, 144, 30, 31]);
+
+        println!("new iv: {:?}", self.iv);
 
         let mut cipher = aes::ctr(
             aes::KeySize::KeySize128,
@@ -121,35 +120,38 @@ impl BackupFile {
             &self.iv,
         );
 
-        // let cipher_dec = ::crypto::aessafe::AesSafe128EncryptorX8::new(&self.cipher_key);
-        // let mut cipher = ::crypto::blockmodes::CtrModeX8::new(cipher_dec, &self.iv);
+        // let aes_dec = ::crypto::aessafe::AesSafe128EncryptorX8::new(&self.cipher_key);
+        // let mut cipher = ::crypto::blockmodes::CtrModeX8::new(aes_dec, &self.iv);
 
-        // let cipher_dec = ::crypto::aesni::AesNiEncryptor::new(aes::KeySize::KeySize128, &self.cipher_key);
-        // let mut cipher = ::crypto::blockmodes::CtrMode::new(cipher_dec, self.iv.clone());
+        // let mut cipher = ::crypto::blockmodes::CtrMode::new(
+        //     ::crypto::aesni::AesNiEncryptor::new(
+        //         aes::KeySize::KeySize128,
+        //         &self.cipher_key
+        //     ),
+        //     self.iv.to_vec()
+        // );
 
         let mut output = util::zeroed(frame.len());
         (*cipher).process(&frame, &mut output);
-
         // use crypto::symmetriccipher::Decryptor;
-        // use crypto::symmetriccipher::SynchronousStreamCipher;
-        // let _ = cipher
-        //     .decrypt(
-        //         &mut ::crypto::buffer::RefReadBuffer::new(&frame),
-        //         &mut ::crypto::buffer::RefWriteBuffer::new(&mut output),
-        //         true,
-        //     )
-        //     // .process(&frame, &mut output)
-        //     .map_err(|e| {
-        //         io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", e))
-        //     })?
-        //     ;
+        // match cipher.decrypt(
+        //     &mut ::crypto::buffer::RefReadBuffer::new(&frame),
+        //     &mut ::crypto::buffer::RefWriteBuffer::new(&mut output),
+        //     false
+        // ) {
+        //     Ok(_) => (),
+        //     Err(_) => Err(Error::new("no decrypt for you"))?,
+        // }
+        // output = vec![42, 2, 8, 4];
+
+        println!("decrypted: {:?}", output);
 
         BackupFrame::decode(output)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 }
 
-fn backup_key(password: &str, salt: &[u8]) -> Result<Vec<u8>, io::Error> {
+fn backup_key(password: &str, salt: &[u8]) -> io::Result<Vec<u8>> {
     let mut digest = Sha512::new();
     let input: Vec<u8> = password
         .trim()
@@ -166,11 +168,14 @@ fn backup_key(password: &str, salt: &[u8]) -> Result<Vec<u8>, io::Error> {
     }
 
     // Do the first digest manually.
-    // Reasoning is that the zeroed bytes may throw off the algorithm.
+    // Using a 30-byte input padded to 64 bytes is completely different to using
+    // just the 30 bytes, so that's all we use for the first round.
     digest.input(&input);
     digest.input(&input);
     digest.result(&mut hash);
     digest.reset();
+
+    println!("hash after round 1: {:?}", hash);
 
     for _ in 1 .. 250_000 {
         digest.input(&hash);
