@@ -6,7 +6,17 @@ In version 4.17.5, the Signal Android app introduced encrypted backups. While th
 
 # Current progress
 
-The program so far is a relatively literal translation of the Java code into Rust. However, it **currently does not work**. Help would be greatly appreciated in figuring out the difference between the Rust and Java code.
+The program so far is a relatively literal translation of the Java code into Go.
+
+The code is very messy and not very good Go in some places.
+
+Everything is decryptable (that I'm aware of).
+
+## Todo list
+
+- Code cleanup
+- Actual command line-ness
+- Formatting ideas and options
 
 # License
 
