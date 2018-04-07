@@ -17,9 +17,36 @@ func main() {
 	if err != nil {
 		fmt.Printf("got error: %s", err)
 	}
+	var as int
 
-	f, _ := bf.frame()
-	fmt.Println("got frame:", f)
+	for {
+		f, err := bf.frame()
+		if err != nil {
+			break
+		}
+
+		if a := f.GetAttachment(); a != nil {
+			fmt.Println("attachment get:", a)
+			file, err := os.OpenFile(fmt.Sprintf("out%v.jpg", as), os.O_CREATE|os.O_WRONLY, os.ModePerm)
+			if err != nil {
+				fmt.Println("nope:", err.Error())
+				break
+			}
+			as++
+			if _, err = bf.decryptAttachment(a, file); err != nil {
+				fmt.Println("nope att:", err.Error())
+			}
+		}
+
+		if s := f.GetStatement(); s != nil {
+			_, err := extractImage(s)
+			if err != nil {
+				// fmt.Println("nope:", err.Error())
+			}
+		}
+
+		// fmt.Println("got frame:", f)
+	}
 }
 
 func openAsString(path string) (string, error) {
