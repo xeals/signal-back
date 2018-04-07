@@ -1,5 +1,2 @@
-
-/target/
-**/*.rs.bk
-/app/*
 signal*backup*
+vendor/
