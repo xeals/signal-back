@@ -139,8 +139,8 @@ func formatXML(bf *backupFile, out io.Writer) error {
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO sms") {
 
 				ps := stmt.Parameters
-				unix := time.Unix(0, int64(*ps[5].IntegerParameter))
-				readable := unix.Format("Sep 30, 2010 8:34:28 AM")
+				unix := time.Unix(int64(*ps[5].IntegerParameter)/1000, 0)
+				readable := unix.Format("Jan 02, 2006 3:04:05 PM")
 
 				sms := SMS{
 					Protocol:      ps[7].IntegerParameter,
