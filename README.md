@@ -23,7 +23,6 @@ Usage: signal-back [OPTION...] BACKUPFILE
 The current interface is by no means complete and I intend to expand on it with stuff like:
 
 - output directory (for extraction)
-- output file (for formatting)
 
 Currently only an XML output format is (partially) available. This attempts to be compatible with the [SMS Backup & Restore](https://play.google.com/store/apps/details?id=com.riteshsahu.SMSBackupRestore) app that is commonly used to back up the system SMS database. However, it is yet untested.
 
@@ -57,6 +56,7 @@ Everything is decryptable (that I'm aware of).
 - [ ] Code cleanup
 - [x] Actual command line-ness
 - [ ] Formatting ideas and options
+- [ ] User-friendliness in errors and stuff
 
 # License
 

@@ -121,6 +121,8 @@ func main() {
 			case "json":
 				// err = formatJSON(bf, out)
 				return E(nil, "JSON is still TODO", 2)
+			default:
+				return E(nil, fmt.Sprintf("format %s not recognised\nvalid formats are: xml", f), 1)
 			}
 			if err != nil {
 				return E(err, "failed to format "+f, 1)
