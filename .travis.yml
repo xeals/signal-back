@@ -1,0 +1,48 @@
+language: go
+sudo: false
+notifications:
+  email: false
+jobs:
+  include:
+    - stage: test
+      go_import_path: github.com/xeals/signal-back
+      env:
+        - DEP_VERSION="0.4.1"
+      before_install:
+        - curl -L -s https://github.com/golang/dep/releases/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
+        - chmod +x $GOPATH/bin/dep
+      install:
+        - dep ensure
+      os: linux
+      go: 1.10.x
+      script:
+        - go build -v .
+    - stage: deploy
+      go_import_path: github.com/xeals/signal-back
+      install: skip
+      script: skip
+      go: 1.10.x
+      before_deploy:
+        - "./build_all.sh"
+      deploy:
+        - provider: releases
+          api_key:
+            secure: X9kvq3vBwLh6ekW0JJpixkn+stOpzl8HgfMHZYiTVLbm0jMXxvoPNCxpfHpbHc5R7s0u1dUifozaQ12wezbZ2Cs6+AFf8xUa69Z9ysGGVT1t0Cj6ODnDaIMgEap2ESTFqzlWbDfdclNwyTklv+1lKiQWWeivQQn5LrkzNKTYN++8NspKMwGFnpqO/Pc4fftzbE++vCJ/dJLvTRDMTFih4uZs3jlosErpNLPpQT9AGN8ciEXnpGr/d5HjBcslCZbfB+ZbBZ1fcX9L6OlOkjbF66HAiGuVMVTI1h4ADCH7D7ee6b+xsbKR8fUuvKcDo084I6ti1ZJy9bp5KzLdzShBm/BgtaOYEIyWQpzNTAEzN5VmwRf3lVOxV/NIKlvjtrKi0oG2ZFDNcVQwGvQCrT3LA+HPkPlmuZc1UPZxmnLuPUVKZeWWb9T8ilGEH+HWbZ1dtgJt13s0ZBo9d3qnLhJuBfT07F9UU4oGF2Dufs42hI+Q/K/LsZSEtLQnBoQMjHRhu3pymfr+iy3oToJLjDC3zKP9QzLoLoJdqPyH/rph1L/Hyb7+VUJbknhdwBzJY25aMl0QVk4Vb1lmS3jWInn62V6wcl3gvcSzUmI7BdXySnSFrRqA6IYmtVz7VnuPhuX8zfXlvoVw5783MJaKtV/+IkUn0dS7Cmt7Wu08MLo8EB0=
+          file:
+            - release/signal-back_darwin_386
+            - release/signal-back_darwin_386.sha256
+            - release/signal-back_darwin_amd64
+            - release/signal-back_darwin_amd64.sha256
+            - release/signal-back_linux_386
+            - release/signal-back_linux_386.sha256
+            - release/signal-back_linux_amd64
+            - release/signal-back_linux_amd64.sha256
+            - release/signal-back_windows_386
+            - release/signal-back_windows_386.sha256
+            - release/signal-back_windows_amd64
+            - release/signal-back_windows_amd64.sha256
+          skip_cleanup: true
+          on:
+            repo: xeals/signal-back
+            branch: master
+            tags: true
