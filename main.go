@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 
@@ -16,13 +17,17 @@ const appHelp = `Usage: {{.HelpName}} [OPTION...] BACKUPFILE
   {{end}}
 `
 
-var pass string
+var (
+	version     = "0.0.0"
+	buildCommit string
+	pass        string
+)
 
 func main() {
 	app := cli.NewApp()
 	app.HideHelp = true
 	app.CustomAppHelpTemplate = appHelp
-	app.Version = "0.0.0"
+	app.Version = version
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "password, p",
@@ -88,7 +93,7 @@ func main() {
 			return E(err, "failed to open backup file", 1)
 		}
 
-		// Get to work
+		// -- Get to work
 
 		if c.Bool("attachments") {
 			if err = extractAttachments(bf); err != nil {
@@ -97,7 +102,25 @@ func main() {
 		}
 
 		if f := c.String("format"); f != "" {
-			return E(nil, "TODO", 2)
+			var out io.Writer
+			if c.String("output") != "" {
+				out, err = os.OpenFile(c.String("output"), os.O_CREATE|os.O_WRONLY, 0644)
+				if err != nil {
+					return E(err, "unable to open output file", 1)
+				}
+			} else {
+				out = os.Stdout
+			}
+			switch f {
+			case "xml":
+				err = formatXML(bf, out)
+			case "json":
+				// err = formatJSON(bf, out)
+				return E(nil, "JSON is still TODO", 2)
+			}
+			if err != nil {
+				return E(err, "failed to format "+f, 1)
+			}
 		}
 
 		return nil
