@@ -41,6 +41,10 @@ func main() {
 			Name:  "format, f",
 			Usage: "output the backup as `FORMAT`",
 		},
+		cli.StringFlag{
+			Name:  "output, o",
+			Usage: "write decrypted format to `FILE`",
+		},
 		cli.BoolFlag{
 			Name:  "attachments, a",
 			Usage: "extract attachments from the backup",
