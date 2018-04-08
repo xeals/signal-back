@@ -32,13 +32,13 @@ func main() {
 			Name:  "pwdfile, P",
 			Usage: "read password from `FILE`",
 		},
-		cli.BoolFlag{
-			Name:  "attachments, a",
-			Usage: "extract attachments from the backup",
-		},
 		cli.StringFlag{
 			Name:  "format, f",
 			Usage: "output the backup as `FORMAT`",
+		},
+		cli.BoolFlag{
+			Name:  "attachments, a",
+			Usage: "extract attachments from the backup",
 		},
 		cli.BoolFlag{
 			Name:  "help, h",

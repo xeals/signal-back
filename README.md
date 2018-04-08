@@ -1,3 +1,5 @@
+<p align="center"><a href="https://travis-ci.org/xeals/signal-back"><img src="https://travis-ci.org/xeals/signal-back.svg?branch=master" alt="Build Status"></img></a></p>
+
 # signal-back
 
 In version 4.17.5, the Signal Android app introduced encrypted backups. While these are undoubtedly a security benefit over unencrypted backups, they do present an issue in being read into other systems or simply by their owner.
@@ -23,6 +25,21 @@ The current interface is by no means complete and I intend to expand on it with 
 - output file (for formatting)
 
 **Currently no formats are available, because I don't know what people might want to see. Please contribute on [#2](https://github.com/xeals/signal-back/issues/2) if you have something you'd like to see!**
+
+# Installing
+
+Currently installation is only manual because it's not ready for a release. I am to support Windows, MacOS, and Linux eventually.
+
+Building requires [Go](https://golang.org) and [dep](https://github.com/golang/dep). If you don't have one (or both) of these tools, instructions should be easy to find. After you've initialised everything:
+
+```
+$ git clone https://github.com/xeals/signal-back $GOPATH/src/github.com/xeals/signal-back
+$ cd $GOPATH/src/github.com/xeals/signal-back
+$ dep ensure
+$ go install .
+```
+
+You can also just use `go get github.com/xeals/signal-back`, but I provide no guarantees on dependency compatibility.
 
 # Current progress
 
