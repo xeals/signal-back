@@ -14,6 +14,12 @@
   version = "v0.8.0"
 
 [[projects]]
+  name = "github.com/urfave/cli"
+  packages = ["."]
+  revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
+  version = "v1.20.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["hkdf"]
@@ -22,6 +28,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "363c621385fc7dc6a4548f7c54eb3f87bc5717169e68ba31213bb6eaa8157dff"
+  inputs-digest = "423ad7dc70043dac4616a895b382477ae5da6bdbb8deaaa4d9cc82fec01f8b7f"
   solver-name = "gps-cdcl"
   solver-version = 1

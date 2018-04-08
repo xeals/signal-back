@@ -40,3 +40,7 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/crypto"
+
+[[constraint]]
+  name = "github.com/urfave/cli"
+  version = "1.20.0"
