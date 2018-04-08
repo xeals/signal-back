@@ -1,6 +1,6 @@
-<p align="center"><a href="https://travis-ci.org/xeals/signal-back"><img src="https://travis-ci.org/xeals/signal-back.svg?branch=master" alt="Build Status"></img></a></p>
-
 # signal-back
+
+[![Build status](https://travis-ci.org/xeals/signal-back.svg?branch=master)](https://travis-ci.org/xeals/signal-back)
 
 In version 4.17.5, the Signal Android app introduced encrypted backups. While these are undoubtedly a security benefit over unencrypted backups, they do present an issue in being read into other systems or simply by their owner.
 
