@@ -1,59 +1,115 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/pkg/errors"
+	"github.com/urfave/cli"
 )
 
+const appHelp = `Usage: {{.HelpName}} [OPTION...] BACKUPFILE
+
+  {{range .VisibleFlags}}{{.}}
+  {{end}}
+`
+
+var pass string
+
 func main() {
-	pwd, err := openAsString("./signal.backup.password")
-	if err != nil {
-		fmt.Println("fuck you, password can't be read:", err.Error())
-		os.Exit(1)
+	app := cli.NewApp()
+	app.HideHelp = true
+	app.CustomAppHelpTemplate = appHelp
+	app.Version = "0.0.0"
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "password, p",
+			Usage: "use `PASS` as password for backup file",
+		},
+		cli.StringFlag{
+			Name:  "pwdfile, P",
+			Usage: "read password from `FILE`",
+		},
+		cli.BoolFlag{
+			Name:  "attachments, a",
+			Usage: "extract attachments from the backup",
+		},
+		cli.StringFlag{
+			Name:  "format, f",
+			Usage: "output the backup as `FORMAT`",
+		},
+		cli.BoolFlag{
+			Name:  "help, h",
+			Usage: "show help",
+		},
 	}
+	app.Action = cli.ActionFunc(func(c *cli.Context) error {
+		// Initialise stuff
+		if c.Bool("help") {
+			err := cli.ShowAppHelp(c)
+			return errors.WithMessage(err, "unable to print help")
+		}
 
-	bf, err := newBackupFile("signal.backup", pwd)
-	if err != nil {
-		fmt.Printf("got error: %s", err)
-	}
-	var as int
+		// -- Verify
 
-	for {
-		f, err := bf.frame()
+		file := c.Args().Get(0)
+		if file == "" {
+			return E(nil, "must specify a Signal backup file", 255)
+		}
+
+		if !c.Bool("attachments") && c.String("format") == "" {
+			return E(nil, "you must specify either attachments or output format", 255)
+		}
+
+		// -- Password
+
+		if c.String("password") != "" {
+			pass = c.String("password")
+		} else if c.String("pwdfile") != "" {
+			bs, err := ioutil.ReadFile(c.String("pwdfile"))
+			if err != nil {
+				return E(err, "unable to read file", 1)
+			}
+			pass = string(bs)
+		} else {
+			r := bufio.NewReader(os.Stdin)
+			fmt.Print("Password: ")
+			t, err := r.ReadString('\n')
+			if err != nil {
+				return E(err, "unable to read from stdin", 1)
+			}
+			pass = t
+		}
+
+		bf, err := newBackupFile(file, pass)
 		if err != nil {
-			break
+			return E(err, "failed to open backup file", 1)
 		}
 
-		if a := f.GetAttachment(); a != nil {
-			fmt.Println("attachment get:", a)
-			file, err := os.OpenFile(fmt.Sprintf("out%v.jpg", as), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-			if err != nil {
-				fmt.Println("nope:", err.Error())
-				break
-			}
-			as++
-			if _, err = bf.decryptAttachment(a, file); err != nil {
-				fmt.Println("nope att:", err.Error())
+		// Get to work
+
+		if c.Bool("attachments") {
+			if err = extractAttachments(bf); err != nil {
+				return E(err, "failed to extract attachment", 1)
 			}
 		}
 
-		if s := f.GetStatement(); s != nil {
-			_, err := extractImage(s)
-			if err != nil {
-				// fmt.Println("nope:", err.Error())
-			}
+		if f := c.String("format"); f != "" {
+			return E(nil, "TODO", 2)
 		}
 
-		// fmt.Println("got frame:", f)
-	}
+		return nil
+	})
+
+	_ = app.Run(os.Args)
 }
 
-func openAsString(path string) (string, error) {
-	bs, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("unable to read file: %s", err)
+// E is a wrapper to simply create a cli.ExitError.
+func E(err error, msg string, code int) *cli.ExitError {
+	if err == nil {
+		return cli.NewExitError(errors.New(msg), code)
 	}
-
-	return string(bs), nil
+	return cli.NewExitError(errors.Wrap(err, msg), code)
 }
