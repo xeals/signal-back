@@ -21,6 +21,8 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
+var protoCommitHash = "d6610f0"
+
 type backupFile struct {
 	File      *bytes.Buffer
 	CipherKey []byte
