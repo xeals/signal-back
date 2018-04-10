@@ -43,17 +43,10 @@ $ go install .
 
 You can also just use `go get github.com/xeals/signal-back`, but I provide no guarantees on dependency compatibility.
 
-# Current progress
-
-The program so far is a relatively literal translation of the Java code into Go.
-
-The code is very messy and not very good Go in some places.
-
-Everything is decryptable (that I'm aware of).
-
-## Todo list
+# Todo list
 
 - [ ] Code cleanup
+  - [ ] make code legible for other people
 - [x] Actual command line-ness
 - [ ] Formatting ideas and options
 - [ ] User-friendliness in errors and stuff
