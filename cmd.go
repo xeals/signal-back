@@ -39,7 +39,7 @@ func extractAttachments(bf *backupFile) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to open output file")
 			}
-			if _, err = bf.decryptAttachment(a, file); err != nil {
+			if err = bf.decryptAttachment(a, file); err != nil {
 				return errors.Wrap(err, "failed to decrypt attachment")
 			}
 		}

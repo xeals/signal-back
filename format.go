@@ -24,7 +24,7 @@ func slurp(bf *backupFile) ([]*signal.BackupFrame, error) {
 
 		// Attachment needs removing
 		if a := f.GetAttachment(); a != nil {
-			_, err := bf.decryptAttachment(a, ioutil.Discard)
+			err := bf.decryptAttachment(a, ioutil.Discard)
 			if err != nil {
 				return nil, errors.Wrap(err, "unable to chew through attachment")
 			}
@@ -128,7 +128,7 @@ func formatXML(bf *backupFile, out io.Writer) error {
 
 		// Attachment needs removing
 		if a := f.GetAttachment(); a != nil {
-			_, err := bf.decryptAttachment(a, ioutil.Discard)
+			err := bf.decryptAttachment(a, ioutil.Discard)
 			if err != nil {
 				return errors.Wrap(err, "unable to chew through attachment")
 			}
