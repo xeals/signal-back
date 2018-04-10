@@ -20,7 +20,9 @@ const appHelp = `Usage: {{.HelpName}} [OPTION...] BACKUPFILE
 var (
 	version     = "0.0.0"
 	buildCommit string
-	pass        string
+
+	pass   string
+	logger io.Writer
 )
 
 func main() {
@@ -45,9 +47,17 @@ func main() {
 			Name:  "output, o",
 			Usage: "write decrypted format to `FILE`",
 		},
+		cli.StringFlag{
+			Name:  "log, l",
+			Usage: "write logging output to `FILE`",
+		},
 		cli.BoolFlag{
 			Name:  "attachments, a",
 			Usage: "extract attachments from the backup",
+		},
+		cli.StringFlag{
+			Name:  "outdir, d",
+			Usage: "output attachments to `DIRECTORY`",
 		},
 		cli.BoolFlag{
 			Name:  "help, h",
@@ -70,6 +80,18 @@ func main() {
 
 		if !c.Bool("attachments") && c.String("format") == "" {
 			return E(nil, "you must specify either attachments or output format", 255)
+		}
+
+		// -- Logging
+
+		if c.String("log") != "" {
+			f, err := os.OpenFile(c.String("log"), os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return E(err, "unable to create logging file", 1)
+			}
+			logger = f
+		} else {
+			logger = os.Stderr
 		}
 
 		// -- Password
@@ -100,6 +122,16 @@ func main() {
 		// -- Get to work
 
 		if c.Bool("attachments") {
+			if path := c.String("outdir"); path != "" {
+				err := os.MkdirAll(path, 0755)
+				if err != nil {
+					return E(err, "unable to create output directory", 1)
+				}
+				err = os.Chdir(path)
+				if err != nil {
+					return E(err, "unable to change working directory", 1)
+				}
+			}
 			if err = extractAttachments(bf); err != nil {
 				return E(err, "failed to extract attachment", 1)
 			}
@@ -141,4 +173,13 @@ func E(err error, msg string, code int) *cli.ExitError {
 		return cli.NewExitError(errors.New(msg), code)
 	}
 	return cli.NewExitError(errors.Wrap(err, msg), code)
+}
+
+func log(s string) {
+	if logger == nil {
+		return
+	}
+	if _, err := logger.Write([]byte(s + "\n")); err != nil {
+		fmt.Println(errors.Wrap(err, "unable to write to log file").Error())
+	}
 }
