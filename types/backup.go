@@ -1,4 +1,4 @@
-package main
+package types
 
 import (
 	"bytes"
@@ -6,8 +6,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	_ "crypto/sha256"
-	_ "crypto/sha512"
 	"fmt"
 	"hash"
 	"io"
@@ -20,9 +18,11 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-var protoCommitHash = "d6610f0"
+// ProtoCommitHash is the commit hash of the Signal Protobuf spec.
+var ProtoCommitHash = "d6610f0"
 
-type backupFile struct {
+// BackupFile holds the internal state of decryption of a Signal backup.
+type BackupFile struct {
 	File      *bytes.Buffer
 	CipherKey []byte
 	MacKey    []byte
@@ -31,7 +31,9 @@ type backupFile struct {
 	Counter   uint32
 }
 
-func newBackupFile(path, password string) (*backupFile, error) {
+// NewBackupFile initialises a backup file for reading using the provided path
+// and password.
+func NewBackupFile(path, password string) (*BackupFile, error) {
 	fileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to open backup file")
@@ -66,7 +68,7 @@ func newBackupFile(path, password string) (*backupFile, error) {
 	cipherKey := derived[:32]
 	macKey := derived[32:]
 
-	return &backupFile{
+	return &BackupFile{
 		File:      fileBuf,
 		CipherKey: cipherKey,
 		MacKey:    macKey,
@@ -76,7 +78,8 @@ func newBackupFile(path, password string) (*backupFile, error) {
 	}, nil
 }
 
-func (bf *backupFile) frame() (*signal.BackupFrame, error) {
+// Frame returns the next frame in the file.
+func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	if bf.File.Len() == 0 {
 		return nil, errors.New("Nothing left to decode")
 	}
@@ -116,7 +119,8 @@ func (bf *backupFile) frame() (*signal.BackupFrame, error) {
 	return decoded, nil
 }
 
-func (bf *backupFile) decryptAttachment(a *signal.Attachment, out io.Writer) error {
+// DecryptAttachment reads the attachment immediately next in the file's bytes.
+func (bf *BackupFile) DecryptAttachment(a *signal.Attachment, out io.Writer) error {
 	uint32ToBytes(bf.IV, bf.Counter)
 	bf.Counter++
 
@@ -153,6 +157,33 @@ func (bf *backupFile) decryptAttachment(a *signal.Attachment, out io.Writer) err
 
 	return nil
 }
+
+// Slurp consumes the entire BackupFile and returns a list of all frames
+// contained in the file. Note that after calling this function, the underlying
+// file buffer will be empty and the file should be considered dropped. Calling
+// any function on the backup file after calling Slurp will fail.
+//
+// Note that any attachments in the backup file will not be handled.
+func (bf *BackupFile) Slurp() ([]*signal.BackupFrame, error) {
+	frames := []*signal.BackupFrame{}
+	for {
+		f, err := bf.Frame()
+		if err != nil {
+			return frames, nil // TODO error matching
+		}
+
+		frames = append(frames, f)
+
+		// Attachment needs removing
+		if a := f.GetAttachment(); a != nil {
+			err := bf.DecryptAttachment(a, ioutil.Discard)
+			if err != nil {
+				return nil, errors.Wrap(err, "unable to chew through attachment")
+			}
+		}
+	}
+}
+
 func backupKey(password string, salt []byte) []byte {
 	digest := crypto.SHA512.New()
 	input := []byte(strings.Replace(strings.TrimSpace(password), " ", "", -1))

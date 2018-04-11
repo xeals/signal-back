@@ -1,0 +1,133 @@
+package cmd
+
+import (
+	"encoding/xml"
+	"io"
+	"io/ioutil"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/urfave/cli"
+	"github.com/xeals/signal-back/types"
+)
+
+// Format fulfils the `format` subcommand.
+var Format = cli.Command{
+	Name:               "format",
+	Usage:              "Read and format the backup file",
+	UsageText:          "Parse and transform the backup file into other formats.",
+	CustomHelpTemplate: SubcommandHelp,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "format, f",
+			Usage: "output the backup as `FORMAT`",
+			Value: "xml",
+		},
+		cli.StringFlag{
+			Name:  "output, o",
+			Usage: "write decrypted format to `FILE`",
+		},
+	},
+	Action: func(c *cli.Context) error {
+		bf, err := setup(c)
+		if err != nil {
+			return err
+		}
+
+		var out io.Writer
+		if c.String("output") != "" {
+			out, err = os.OpenFile(c.String("output"), os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return errors.Wrap(err, "unable to open output file")
+			}
+		} else {
+			out = os.Stdout
+		}
+
+		switch c.String("format") {
+		case "xml":
+			err = XML(bf, out)
+		case "json":
+			// err = formatJSON(bf, out)
+			return errors.New("JSON is still TODO")
+		default:
+			return errors.Errorf("format %s not recognised\nvalid formats are: xml", c.String("format"))
+		}
+		if err != nil {
+			return errors.Wrap(err, "failed to format output")
+		}
+
+		return nil
+	},
+}
+
+// JSON <undefined>
+func JSON(bf *types.BackupFile, out io.Writer) error {
+	return nil
+}
+
+// XML formats the backup into the same XML format as SMS Backup & Restore
+// uses. Layout described at their website
+// http://synctech.com.au/fields-in-xml-backup-files/
+func XML(bf *types.BackupFile, out io.Writer) error {
+	smses := &types.SMSes{}
+	for {
+		f, err := bf.Frame()
+		if err != nil {
+			break
+		}
+
+		// Attachment needs removing
+		if a := f.GetAttachment(); a != nil {
+			err := bf.DecryptAttachment(a, ioutil.Discard)
+			if err != nil {
+				return errors.Wrap(err, "unable to chew through attachment")
+			}
+		}
+
+		if stmt := f.GetStatement(); stmt != nil {
+			// Only use SMS/MMS statements
+			if strings.HasPrefix(*stmt.Statement, "INSERT INTO sms") {
+
+				ps := stmt.Parameters
+				unix := time.Unix(int64(*ps[5].IntegerParameter)/1000, 0)
+				readable := unix.Format("Jan 02, 2006 3:04:05 PM")
+
+				sms := types.SMS{
+					Protocol:      ps[7].IntegerParameter,
+					Address:       ps[2].GetStringParamter(),
+					Date:          ps[5].GetStringParamter(),
+					Type:          ps[10].GetIntegerParameter(),
+					Subject:       ps[13].StringParamter,
+					Body:          ps[14].GetStringParamter(),
+					ServiceCenter: ps[16].StringParamter,
+					Read:          ps[8].GetIntegerParameter(),
+					Status:        int64(*ps[9].IntegerParameter),
+					DateSent:      ps[6].IntegerParameter,
+					ReadableDate:  &readable,
+					ContactName:   ps[4].StringParamter,
+				}
+				smses.SMS = append(smses.SMS, sms)
+			}
+
+			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") {
+				// TODO this
+				continue
+			}
+		}
+	}
+
+	smses.Count = len(smses.SMS)
+	x, err := xml.Marshal(smses)
+	if err != nil {
+		return errors.Wrap(err, "unable to format XML")
+	}
+
+	w := types.NewMultiWriter(out)
+	w.W([]byte(`<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>'\n`))
+	w.W([]byte(`<?xml-stylesheet type="text/xsl" href="sms.xsl"?>'\n`))
+	w.W(x)
+	return errors.WithMessage(w.Error(), "failed to write out XML")
+}
