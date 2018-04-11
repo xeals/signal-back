@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -111,7 +112,7 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 				sms := types.SMS{
 					Protocol:      ps[7].IntegerParameter,
 					Address:       ps[2].GetStringParamter(),
-					Date:          ps[5].GetStringParamter(),
+					Date:          strconv.FormatUint(ps[5].GetIntegerParameter(), 10),
 					Type:          translateSMSType(ps[10].GetIntegerParameter()),
 					Subject:       ps[13].StringParamter,
 					Body:          ps[14].GetStringParamter(),
