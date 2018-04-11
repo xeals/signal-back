@@ -17,6 +17,18 @@ var Extract = cli.Command{
 	CustomHelpTemplate: SubcommandHelp,
 	Flags: []cli.Flag{
 		cli.StringFlag{
+			Name:  "log, l",
+			Usage: "write logging output to `FILE`",
+		},
+		cli.StringFlag{
+			Name:  "password, p",
+			Usage: "use `PASS` as password for backup file",
+		},
+		cli.StringFlag{
+			Name:  "pwdfile, P",
+			Usage: "read password from `FILE`",
+		},
+		cli.StringFlag{
 			Name:  "outdir, o",
 			Usage: "output attachments to `DIRECTORY`",
 		},

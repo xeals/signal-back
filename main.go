@@ -29,18 +29,6 @@ func main() {
 			Name:  "help, h",
 			Usage: "show help",
 		},
-		cli.StringFlag{
-			Name:  "log, l",
-			Usage: "write logging output to `FILE`",
-		},
-		cli.StringFlag{
-			Name:  "password, p",
-			Usage: "use `PASS` as password for backup file",
-		},
-		cli.StringFlag{
-			Name:  "pwdfile, P",
-			Usage: "read password from `FILE`",
-		},
 	}
 	app.Action = func(c *cli.Context) error {
 		cli.ShowAppHelpAndExit(c, 255)
