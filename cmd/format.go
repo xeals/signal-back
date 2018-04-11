@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -111,7 +112,7 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 					Protocol:      ps[7].IntegerParameter,
 					Address:       ps[2].GetStringParamter(),
 					Date:          ps[5].GetStringParamter(),
-					Type:          ps[10].GetIntegerParameter(),
+					Type:          translateSMSType(ps[10].GetIntegerParameter()),
 					Subject:       ps[13].StringParamter,
 					Body:          ps[14].GetStringParamter(),
 					ServiceCenter: ps[16].StringParamter,
@@ -138,8 +139,27 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	}
 
 	w := types.NewMultiWriter(out)
-	w.W([]byte(`<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>'\n`))
-	w.W([]byte(`<?xml-stylesheet type="text/xsl" href="sms.xsl"?>'\n`))
+	w.W([]byte(`<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>`))
+	w.W([]byte(`<?xml-stylesheet type="text/xsl" href="sms.xsl"?>`))
 	w.W(x)
 	return errors.WithMessage(w.Error(), "failed to write out XML")
+}
+
+func translateSMSType(t uint64) types.SMSType {
+	switch t {
+	case 3: // draft
+		return types.SMSDraft
+	case 20: // insecure received
+		return types.SMSReceived
+	case 23: // insecure sent
+		return types.SMSSent
+	case 2097156: // GSM? FIXME
+		return types.SMSFailed
+	case 10485780: // secure received
+		return types.SMSReceived
+	case 10485783: // secure sent
+		return types.SMSSent
+	default:
+		panic(fmt.Sprintf("undefined SMS type: %v", t))
+	}
 }
