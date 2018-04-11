@@ -2,6 +2,20 @@ package types
 
 import "encoding/xml"
 
+// SMSType is an SMS type as defined by the XML backup spec.
+type SMSType uint64
+
+// SMS types
+const (
+	_                   = iota
+	SMSReceived SMSType = iota // 1
+	SMSSent                    // 2
+	SMSDraft                   // 3
+	SMSOutbox                  // 4
+	SMSFailed                  // 5
+	SMSQueued                  // 6
+)
+
 // SMSes holds a set of MMS or SMS records.
 type SMSes struct {
 	XMLName xml.Name `xml:"smses"`
@@ -16,7 +30,7 @@ type SMS struct {
 	Protocol      *uint64  `xml:"protocol,attr"`       // optional
 	Address       string   `xml:"address,attr"`        // required
 	Date          string   `xml:"date,attr"`           // required
-	Type          uint64   `xml:"type,attr"`           // required
+	Type          SMSType  `xml:"type,attr"`           // required
 	Subject       *string  `xml:"subject,attr"`        // optional
 	Body          string   `xml:"body,attr"`           // required
 	TOA           *string  `xml:"toa,attr"`            // optional
