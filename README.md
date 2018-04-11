@@ -9,20 +9,22 @@ In version 4.17.5, the Signal Android app introduced encrypted backups. While th
 # Usage
 
 ```
-Usage: signal-back [OPTION...] BACKUPFILE
+Usage: signal-back COMMAND [OPTION...] BACKUPFILE
 
-  --password PASS, -p PASS    use PASS as password for backup file
-  --pwdfile FILE, -P FILE     read password from FILE
-  --format FORMAT, -f FORMAT  output the backup as FORMAT
-  --output FILE, -o FILE      write decrypted format to FILE
-  --attachments, -a           extract attachments from the backup
-  --help, -h                  show help
-  --version, -v               print the version
+  --help, -h                show help
+  --log FILE, -l FILE       write logging output to FILE
+  --password PASS, -p PASS  use PASS as password for backup file
+  --pwdfile FILE, -P FILE   read password from FILE
+  --version, -v             print the version
+
+Commands:
+  format   Read and format the backup file
+  analyse  Information about the backup file
+  extract  Retrieve attachments from the backup
+  help     Shows a list of commands or help for one command
 ```
 
-The current interface is by no means complete and I intend to expand on it with stuff like:
-
-- output directory (for extraction)
+The current interface is by no means complete and I intend to expand on it.
 
 Currently only an XML output format is (partially) available. This attempts to be compatible with the [SMS Backup & Restore](https://play.google.com/store/apps/details?id=com.riteshsahu.SMSBackupRestore) app that is commonly used to back up the system SMS database. However, it is yet untested.
 
