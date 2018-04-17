@@ -21,7 +21,7 @@ import (
 var Format = cli.Command{
 	Name:               "format",
 	Usage:              "Read and format the backup file",
-	UsageText:          "Parse and transform the backup file into other formats.",
+	UsageText:          "Parse and transform the backup file into other formats.\nValid formats include: CSV, XML.",
 	CustomHelpTemplate: SubcommandHelp,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -62,7 +62,7 @@ var Format = cli.Command{
 			out = os.Stdout
 		}
 
-		switch c.String("format") {
+		switch strings.ToLower(c.String("format")) {
 		case "csv":
 			err = CSV(bf, out)
 		case "xml":
@@ -71,7 +71,7 @@ var Format = cli.Command{
 			// err = formatJSON(bf, out)
 			return errors.New("JSON is still TODO")
 		default:
-			return errors.Errorf("format %s not recognised\nvalid formats are: xml", c.String("format"))
+			return errors.Errorf("format %s not recognised", c.String("format"))
 		}
 		if err != nil {
 			return errors.Wrap(err, "failed to format output")
