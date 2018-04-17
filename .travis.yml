@@ -19,11 +19,17 @@ jobs:
         - go build -v .
     - stage: deploy
       go_import_path: github.com/xeals/signal-back
-      install: skip
+      env:
+        - DEP_VERSION="0.4.1"
+      before_install:
+        - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
+        - chmod +x $GOPATH/bin/dep
+      install:
+        - dep ensure
       script: skip
       go: 1.10.x
       before_deploy:
-        - "./build_all.sh"
+        - ./build_all.sh
       deploy:
         - provider: releases
           api_key:
