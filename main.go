@@ -9,7 +9,7 @@ import (
 	"github.com/xeals/signal-back/types"
 )
 
-var version = "0.0.0"
+var version = "devel"
 
 func main() {
 	cli.VersionPrinter = func(c *cli.Context) {
@@ -31,8 +31,7 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) error {
-		cli.ShowAppHelpAndExit(c, 255)
-		return nil
+		return cli.ShowAppHelp(c)
 	}
 	// app.Action = cli.ActionFunc(func(c *cli.Context) error {
 	// 	// -- Logging
