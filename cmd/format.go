@@ -216,8 +216,18 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 
 func translateSMSType(t uint64) types.SMSType {
 	switch t {
-	case 3: // draft
+	case 1: // standard standard
+		return types.SMSReceived
+	case 2: // standard sent
+		return types.SMSSent
+	case 3: // standard draft
 		return types.SMSDraft
+	case 4: // standard outbox
+		return types.SMSOutbox
+	case 5: // standard failed
+		return types.SMSFailed
+	case 6: // standard queued
+		return types.SMSQueued
 	case 20: // insecure received
 		return types.SMSReceived
 	case 23: // insecure sent
@@ -229,6 +239,6 @@ func translateSMSType(t uint64) types.SMSType {
 	case 10485783: // secure sent
 		return types.SMSSent
 	default:
-		panic(fmt.Sprintf("undefined SMS type: %v", t))
+		panic(fmt.Sprintf("undefined SMS type: %v\nplease report this issue, as well as (if possible) details about the SMS,\nsuch as whether it was sent, received, drafted, etc.", t))
 	}
 }
