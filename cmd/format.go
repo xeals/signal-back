@@ -88,7 +88,7 @@ func JSON(bf *types.BackupFile, out io.Writer) error {
 
 // CSV <undefined>
 func CSV(bf *types.BackupFile, out io.Writer) error {
-	smses := make([]*types.SQLSMS, 0)
+	ss := make([][]string, 0)
 	for {
 		f, err := bf.Frame()
 		if err != nil {
@@ -105,7 +105,7 @@ func CSV(bf *types.BackupFile, out io.Writer) error {
 
 		if stmt := f.GetStatement(); stmt != nil {
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO sms") {
-				smses = append(smses, types.StatementToSMS(stmt))
+				ss = append(ss, types.StatementToStringArray(stmt))
 			}
 		}
 	}
@@ -139,8 +139,8 @@ func CSV(bf *types.BackupFile, out io.Writer) error {
 		return errors.Wrap(err, "unable to write CSV headers")
 	}
 
-	for _, sms := range smses {
-		if err := w.Write(sms.StringArray()); err != nil {
+	for _, sms := range ss {
+		if err := w.Write(sms); err != nil {
 			return errors.Wrap(err, "unable to format CSV")
 		}
 	}

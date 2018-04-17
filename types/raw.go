@@ -31,6 +31,18 @@ type SQLSMS struct {
 	ReadReceiptCount     uint64 // default 0
 }
 
+func StatementToStringArray(sql *signal.SqlStatement) []string {
+	s := make([]string, 0)
+	for _, p := range sql.GetParameters() {
+		if p.IntegerParameter != nil {
+			s = append(s, strconv.Itoa(int(*p.IntegerParameter)))
+		} else if p.StringParamter != nil {
+			s = append(s, *p.StringParamter)
+		}
+	}
+	return s
+}
+
 // StatementToSMS converts a of SQL statement to a single SMS.
 func StatementToSMS(sql *signal.SqlStatement) *SQLSMS {
 	return ParametersToSMS(sql.GetParameters())
