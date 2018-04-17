@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"encoding/csv"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -61,6 +63,8 @@ var Format = cli.Command{
 		}
 
 		switch c.String("format") {
+		case "csv":
+			err = CSV(bf, out)
 		case "xml":
 			err = XML(bf, out)
 		case "json":
@@ -80,6 +84,70 @@ var Format = cli.Command{
 // JSON <undefined>
 func JSON(bf *types.BackupFile, out io.Writer) error {
 	return nil
+}
+
+// CSV <undefined>
+func CSV(bf *types.BackupFile, out io.Writer) error {
+	smses := make([]*types.SQLSMS, 0)
+	for {
+		f, err := bf.Frame()
+		if err != nil {
+			break
+		}
+
+		// Attachment needs removing
+		if a := f.GetAttachment(); a != nil {
+			err := bf.DecryptAttachment(a, ioutil.Discard)
+			if err != nil {
+				return errors.Wrap(err, "unable to chew through attachment")
+			}
+		}
+
+		if stmt := f.GetStatement(); stmt != nil {
+			if strings.HasPrefix(*stmt.Statement, "INSERT INTO sms") {
+				smses = append(smses, types.StatementToSMS(stmt))
+			}
+		}
+	}
+
+	w := csv.NewWriter(out)
+
+	if err := w.Write([]string{
+		"ID",
+		"THREAD_ID",
+		"ADDRESS",
+		"ADDRESS_DEVICE_ID",
+		"PERSON",
+		"DATE_RECEIVED",
+		"DATE_SENT",
+		"PROTOCOL",
+		"READ",
+		"STATUS",
+		"TYPE",
+		"REPLY_PATH_PRESENT",
+		"DELIVERY_RECEIPT_COUNT",
+		"SUBJECT",
+		"BODY",
+		"MISMATCHED_IDENTITIES",
+		"SERVICE_CENTER",
+		"SUBSCRIPTION_ID",
+		"EXPIRES_IN",
+		"EXPIRE_STARTED",
+		"NOTIFIED",
+		"READ_RECEIPT_COUNT",
+	}); err != nil {
+		return errors.Wrap(err, "unable to write CSV headers")
+	}
+
+	for _, sms := range smses {
+		if err := w.Write(sms.StringArray()); err != nil {
+			return errors.Wrap(err, "unable to format CSV")
+		}
+	}
+
+	w.Flush()
+
+	return errors.WithMessage(w.Error(), "unable to end CSV writer or something")
 }
 
 // XML formats the backup into the same XML format as SMS Backup & Restore
@@ -128,7 +196,7 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") {
 				// TODO this
-				continue
+				log.Println("MMS export not yet supported")
 			}
 		}
 	}
