@@ -215,7 +215,12 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 }
 
 func translateSMSType(t uint64) types.SMSType {
-	switch t {
+	// Just get the lower 8 bits, because everything else is masking.
+	// https://github.com/signalapp/Signal-Android/blob/master/src/org/thoughtcrime/securesms/database/MmsSmsColumns.java
+	v := uint8(t)
+
+	switch v {
+	// STANDARD
 	case 1: // standard standard
 		return types.SMSReceived
 	case 2: // standard sent
@@ -228,17 +233,26 @@ func translateSMSType(t uint64) types.SMSType {
 		return types.SMSFailed
 	case 6: // standard queued
 		return types.SMSQueued
-	case 20: // insecure received
+
+		// SIGNAL
+	case 20: // signal received
 		return types.SMSReceived
-	case 23: // insecure sent
+	case 21: // signal outbox
+		return types.SMSOutbox
+	case 22: // signal sending
+		return types.SMSQueued
+	case 23: // signal sent
 		return types.SMSSent
-	case 2097156: // GSM? FIXME
+	case 24: // signal failed
 		return types.SMSFailed
-	case 10485780: // secure received
-		return types.SMSReceived
-	case 10485783: // secure sent
-		return types.SMSSent
+	case 25: // pending secure SMS fallback
+		return types.SMSQueued
+	case 26: // pending insecure SMS fallback
+		return types.SMSQueued
+	case 27: // signal draft
+		return types.SMSDraft
+
 	default:
-		panic(fmt.Sprintf("undefined SMS type: %v\nplease report this issue, as well as (if possible) details about the SMS,\nsuch as whether it was sent, received, drafted, etc.", t))
+		panic(fmt.Sprintf("undefined SMS type: %#v\nplease report this issue, as well as (if possible) details about the SMS,\nsuch as whether it was sent, received, drafted, etc.", t))
 	}
 }
