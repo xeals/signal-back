@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+	"github.com/xeals/signal-back/signal"
 	"github.com/xeals/signal-back/types"
 )
 
@@ -37,11 +38,16 @@ var Analyse = cli.Command{
 		}
 
 		a, err := AnalyseTables(bf)
+		fmt.Println("This is still largely in flux and reflects whatever task I was having issues with at the time.\n")
 		fmt.Println(a)
 
-		return nil
+		fmt.Println("part:", len(examples["insert_into_part"].GetParameters()), examples["insert_into_part"])
+
+		return errors.WithMessage(err, "failed to analyse tables")
 	},
 }
+
+var examples = map[string]*signal.SqlStatement{}
 
 // AnalyseTables calculates the frequency of all records in the backup file.
 func AnalyseTables(bf *types.BackupFile) (map[string]int, error) {
@@ -75,21 +81,21 @@ func AnalyseTables(bf *types.BackupFile) (map[string]int, error) {
 		if stmt := f.GetStatement(); stmt != nil {
 			if strings.HasPrefix(*stmt.Statement, "DROP TABLE") {
 				if counts["drop_table"] == 0 {
-					fmt.Println(stmt)
+					examples["drop_table"] = stmt
 				}
 				counts["drop_table"]++
 				continue
 			}
 			if strings.HasPrefix(*stmt.Statement, "CREATE TABLE") {
 				if counts["create_table"] == 0 {
-					fmt.Println(stmt)
+					examples["create_table"] = stmt
 				}
 				counts["create_table"]++
 				continue
 			}
 			if strings.HasPrefix(*stmt.Statement, "DROP INDEX") {
 				if counts["drop_index"] == 0 {
-					fmt.Println(stmt)
+					examples["drop_index"] = stmt
 				}
 				counts["drop_index"]++
 				continue
@@ -97,7 +103,7 @@ func AnalyseTables(bf *types.BackupFile) (map[string]int, error) {
 			if strings.HasPrefix(*stmt.Statement, "CREATE INDEX") ||
 				strings.HasPrefix(*stmt.Statement, "CREATE UNIQUE INDEX") {
 				if counts["create_index"] == 0 {
-					fmt.Println(stmt)
+					examples["create_index"] = stmt
 				}
 				counts["create_index"]++
 				continue
@@ -105,7 +111,7 @@ func AnalyseTables(bf *types.BackupFile) (map[string]int, error) {
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO") {
 				table := strings.Split(*stmt.Statement, " ")[2]
 				if counts["insert_into_"+table] == 0 {
-					fmt.Println(stmt)
+					examples["insert_into_"+table] = stmt
 				}
 				counts["insert_into_"+table]++
 				continue
