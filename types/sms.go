@@ -166,9 +166,9 @@ func intToTime(n *uint64) *string {
 }
 
 func translateSMSType(t uint64) SMSType {
-	// Just get the lower 8 bits, because everything else is masking.
+	// Just get the lowest 5 bits, because everything else is masking.
 	// https://github.com/signalapp/Signal-Android/blob/master/src/org/thoughtcrime/securesms/database/MmsSmsColumns.java
-	v := uint8(t)
+	v := uint8(t) & 0x1F
 
 	switch v {
 	// STANDARD
