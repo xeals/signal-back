@@ -1,14 +1,22 @@
 package types
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"log"
+	"strconv"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/xeals/signal-back/signal"
+)
 
 // SMSType is an SMS type as defined by the XML backup spec.
 type SMSType uint64
 
 // SMS types
 const (
-	_                   = iota
-	SMSReceived SMSType = iota // 1
+	SMSInvalid  SMSType = iota // 0
+	SMSReceived                // 1
 	SMSSent                    // 2
 	SMSDraft                   // 3
 	SMSOutbox                  // 4
@@ -41,7 +49,7 @@ type SMS struct {
 	Locked        *uint64  `xml:"locked,attr"`         // optional
 	DateSent      *uint64  `xml:"date_sent,attr"`      // optional
 	ReadableDate  *string  `xml:"readable_date,attr"`  // optional
-	ContactName   *string  `xml:"contact_name,attr"`   // optional
+	ContactName   *uint64  `xml:"contact_name,attr"`   // optional
 }
 
 // MMS represents a Multimedia Messaging Service record.
@@ -99,4 +107,105 @@ type MMSPart struct {
 	CttT    string   `xml:"ctt_t,attr"` // required
 	Text    string   `xml:"text,attr"`  // required
 	Data    *string  `xml:"data,attr"`  // optional
+}
+
+// NewSMSFromStatement constructs an XML SMS struct from a SQL statement.
+func NewSMSFromStatement(stmt *signal.SqlStatement) (*SMS, error) {
+	sms := StatementToSMS(stmt)
+	if sms == nil {
+		return nil, errors.Errorf("expected 22 columns for SMS, have %v", len(stmt.GetParameters()))
+	}
+
+	xml := SMS{
+		Protocol:      &sms.Protocol,
+		Subject:       sms.Subject,
+		ServiceCenter: sms.ServiceCenter,
+		Read:          sms.Read,
+		Status:        int64(sms.Status),
+		DateSent:      sms.DateSent,
+		ReadableDate:  intToTime(sms.DateReceived),
+	}
+
+	if sms.Address != nil {
+		xml.Address = *sms.Address
+	}
+	if sms.Type != nil {
+		xml.Type = translateSMSType(*sms.Type)
+	}
+	if sms.Body != nil {
+		xml.Body = *sms.Body
+	}
+	if sms.DateReceived != nil {
+		xml.Date = strconv.FormatUint(*sms.DateReceived, 10)
+	}
+	if sms.Person != nil {
+		xml.ContactName = sms.Person
+	}
+
+	return &xml, nil
+}
+
+func NewMMSFromStatement(stmt *signal.SqlStatement) (*MMS, error) {
+	mms := StatementToMMS(stmt)
+	if mms == nil {
+		return nil, errors.Errorf("expected 42 columns for MMS, have %v", len(stmt.GetParameters()))
+	}
+
+	xml := MMS{}
+
+	return &xml, nil
+}
+
+func intToTime(n *uint64) *string {
+	if n == nil {
+		return nil
+	}
+	unix := time.Unix(int64(*n)/1000, 0)
+	t := unix.Format("Jan 02, 2006 3:04:05 PM")
+	return &t
+}
+
+func translateSMSType(t uint64) SMSType {
+	// Just get the lower 8 bits, because everything else is masking.
+	// https://github.com/signalapp/Signal-Android/blob/master/src/org/thoughtcrime/securesms/database/MmsSmsColumns.java
+	v := uint8(t)
+
+	switch v {
+	// STANDARD
+	case 1: // standard standard
+		return SMSReceived
+	case 2: // standard sent
+		return SMSSent
+	case 3: // standard draft
+		return SMSDraft
+	case 4: // standard outbox
+		return SMSOutbox
+	case 5: // standard failed
+		return SMSFailed
+	case 6: // standard queued
+		return SMSQueued
+
+		// SIGNAL
+	case 20: // signal received
+		return SMSReceived
+	case 21: // signal outbox
+		return SMSOutbox
+	case 22: // signal sending
+		return SMSQueued
+	case 23: // signal sent
+		return SMSSent
+	case 24: // signal failed
+		return SMSFailed
+	case 25: // pending secure SMS fallback
+		return SMSQueued
+	case 26: // pending insecure SMS fallback
+		return SMSQueued
+	case 27: // signal draft
+		return SMSDraft
+
+	default:
+		log.Fatalf("undefined SMS type: %#v\nplease report this issue, as well as (if possible) details about the SMS,\nsuch as whether it was sent, received, drafted, etc.\n", t)
+		log.Fatalf("note that the output XML may not properly import to Signal\n")
+		return SMSInvalid
+	}
 }

@@ -3,14 +3,11 @@ package cmd
 import (
 	"encoding/csv"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
@@ -143,6 +140,8 @@ func CSV(bf *types.BackupFile, message string, out io.Writer) error {
 // http://synctech.com.au/fields-in-xml-backup-files/
 func XML(bf *types.BackupFile, out io.Writer) error {
 	smses := &types.SMSes{}
+	mmses := map[uint64]types.MMS{}
+	mmsParts := map[uint64][]types.MMSPart{}
 	for {
 		f, err := bf.Frame()
 		if err != nil {
@@ -160,32 +159,27 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 		if stmt := f.GetStatement(); stmt != nil {
 			// Only use SMS/MMS statements
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO sms") {
-
-				ps := stmt.Parameters
-				unix := time.Unix(int64(*ps[5].IntegerParameter)/1000, 0)
-				readable := unix.Format("Jan 02, 2006 3:04:05 PM")
-
-				sms := types.SMS{
-					Protocol:      ps[7].IntegerParameter,
-					Address:       ps[2].GetStringParamter(),
-					Date:          strconv.FormatUint(ps[5].GetIntegerParameter(), 10),
-					Type:          translateSMSType(ps[10].GetIntegerParameter()),
-					Subject:       ps[13].StringParamter,
-					Body:          ps[14].GetStringParamter(),
-					ServiceCenter: ps[16].StringParamter,
-					Read:          ps[8].GetIntegerParameter(),
-					Status:        int64(*ps[9].IntegerParameter),
-					DateSent:      ps[6].IntegerParameter,
-					ReadableDate:  &readable,
-					ContactName:   ps[4].StringParamter,
+				sms, err := types.NewSMSFromStatement(stmt)
+				if err == nil {
+					smses.SMS = append(smses.SMS, *sms)
 				}
-				smses.SMS = append(smses.SMS, sms)
 			}
 
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") {
 				// TODO this
 				log.Println("MMS export not yet supported")
 			}
+
+			if strings.HasPrefix(*stmt.Statement, "INSERT INTO part") {
+				// TODO also this
+			}
+		}
+	}
+
+	for id, p := range mmsParts {
+		if mms, ok := mmses[id]; ok {
+			mms.Parts = p
+			smses.MMS = append(smses.MMS, mms)
 		}
 	}
 
@@ -200,47 +194,4 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	w.W([]byte(`<?xml-stylesheet type="text/xsl" href="sms.xsl"?>`))
 	w.W(x)
 	return errors.WithMessage(w.Error(), "failed to write out XML")
-}
-
-func translateSMSType(t uint64) types.SMSType {
-	// Just get the lower 8 bits, because everything else is masking.
-	// https://github.com/signalapp/Signal-Android/blob/master/src/org/thoughtcrime/securesms/database/MmsSmsColumns.java
-	v := uint8(t)
-
-	switch v {
-	// STANDARD
-	case 1: // standard standard
-		return types.SMSReceived
-	case 2: // standard sent
-		return types.SMSSent
-	case 3: // standard draft
-		return types.SMSDraft
-	case 4: // standard outbox
-		return types.SMSOutbox
-	case 5: // standard failed
-		return types.SMSFailed
-	case 6: // standard queued
-		return types.SMSQueued
-
-		// SIGNAL
-	case 20: // signal received
-		return types.SMSReceived
-	case 21: // signal outbox
-		return types.SMSOutbox
-	case 22: // signal sending
-		return types.SMSQueued
-	case 23: // signal sent
-		return types.SMSSent
-	case 24: // signal failed
-		return types.SMSFailed
-	case 25: // pending secure SMS fallback
-		return types.SMSQueued
-	case 26: // pending insecure SMS fallback
-		return types.SMSQueued
-	case 27: // signal draft
-		return types.SMSDraft
-
-	default:
-		panic(fmt.Sprintf("undefined SMS type: %#v\nplease report this issue, as well as (if possible) details about the SMS,\nsuch as whether it was sent, received, drafted, etc.", t))
-	}
 }
