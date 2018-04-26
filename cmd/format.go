@@ -34,6 +34,11 @@ var Format = cli.Command{
 			Usage: "write logging output to `FILE`",
 		},
 		cli.StringFlag{
+			Name:  "message, m",
+			Usage: "format `TYPE` messages",
+			Value: "sms",
+		},
+		cli.StringFlag{
 			Name:  "password, p",
 			Usage: "use `PASS` as password for backup file",
 		},
@@ -64,7 +69,7 @@ var Format = cli.Command{
 
 		switch strings.ToLower(c.String("format")) {
 		case "csv":
-			err = CSV(bf, out)
+			err = CSV(bf, strings.ToLower(c.String("message")), out)
 		case "xml":
 			err = XML(bf, out)
 		case "json":
@@ -86,8 +91,8 @@ func JSON(bf *types.BackupFile, out io.Writer) error {
 	return nil
 }
 
-// CSV <undefined>
-func CSV(bf *types.BackupFile, out io.Writer) error {
+// CSV dumps the raw backup data into a comma-separated value format.
+func CSV(bf *types.BackupFile, message string, out io.Writer) error {
 	ss := make([][]string, 0)
 	for {
 		f, err := bf.Frame()
@@ -104,38 +109,21 @@ func CSV(bf *types.BackupFile, out io.Writer) error {
 		}
 
 		if stmt := f.GetStatement(); stmt != nil {
-			if strings.HasPrefix(*stmt.Statement, "INSERT INTO sms") {
+			if (*stmt.Statement)[:15] == "INSERT INTO "+message {
 				ss = append(ss, types.StatementToStringArray(stmt))
 			}
 		}
 	}
 
 	w := csv.NewWriter(out)
+	var headers []string
+	if message == "mms" {
+		headers = types.MMSCSVHeaders
+	} else {
+		headers = types.SMSCSVHeaders
+	}
 
-	if err := w.Write([]string{
-		"ID",
-		"THREAD_ID",
-		"ADDRESS",
-		"ADDRESS_DEVICE_ID",
-		"PERSON",
-		"DATE_RECEIVED",
-		"DATE_SENT",
-		"PROTOCOL",
-		"READ",
-		"STATUS",
-		"TYPE",
-		"REPLY_PATH_PRESENT",
-		"DELIVERY_RECEIPT_COUNT",
-		"SUBJECT",
-		"BODY",
-		"MISMATCHED_IDENTITIES",
-		"SERVICE_CENTER",
-		"SUBSCRIPTION_ID",
-		"EXPIRES_IN",
-		"EXPIRE_STARTED",
-		"NOTIFIED",
-		"READ_RECEIPT_COUNT",
-	}); err != nil {
+	if err := w.Write(headers); err != nil {
 		return errors.Wrap(err, "unable to write CSV headers")
 	}
 
