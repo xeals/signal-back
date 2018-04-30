@@ -74,16 +74,7 @@ func ExtractAttachments(bf *types.BackupFile) error {
 		}
 
 		if a := f.GetAttachment(); a != nil {
-			var ext string
-			switch enc := aEncs[*a.AttachmentId]; enc {
-			case "image/jpeg":
-				ext = "jpg"
-			default:
-				log.Fatalf("encoding `%s` not recognised. create a PR or issue if you think it should be\n", enc)
-				log.Fatalf("if you can provide details on the file '%v' as well, it would be appreciated", *a.AttachmentId)
-				ext = ""
-			}
-
+			ext := getExt(aEncs[*a.AttachmentId], *a.AttachmentId)
 			fileName := fmt.Sprintf("%v.%s", *a.AttachmentId, ext)
 			file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 			if err != nil {
@@ -94,4 +85,148 @@ func ExtractAttachments(bf *types.BackupFile) error {
 			}
 		}
 	}
+}
+
+func getExt(mime string, file uint64) string {
+	// List taken from https://github.com/h2non/filetype
+	switch mime {
+	// IMAGE
+	case "image/jpeg":
+		return "jpg"
+	case "image/png":
+		return "png"
+	case "image/gif":
+		return "gif"
+	case "image/webp":
+		return "webp"
+	case "image/x-canon-cr2":
+		return "cr2"
+	case "image/tiff":
+		return "tif"
+	case "image/bmp":
+		return "bmp"
+	case "image/vnd.ms-photo":
+		return "jxr"
+	case "image/vnd.adobe.photoshop":
+		return "psd"
+	case "image/x-icon":
+		return "ico"
+
+		// VIDEO
+	case "video/mp4":
+		return "mp4"
+	case "video/x-m4v":
+		return "m4v"
+	case "video/x-matroska":
+		return "mkv"
+	case "video/webm":
+		return "webm"
+	case "video/quicktime":
+		return "mov"
+	case "video/x-msvideo":
+		return "avi"
+	case "video/x-ms-wmv":
+		return "wmv"
+	case "video/mpeg":
+		return "mpg"
+	case "video/x-flv":
+		return "flv"
+
+		// AUDIO
+	case "audio/midi":
+		return "mid"
+	case "audio/mpeg":
+		return "mp3"
+	case "audio/m4a":
+		return "m4a"
+	case "audio/ogg":
+		return "ogg"
+	case "audio/x-flac":
+		return "flac"
+	case "audio/x-wav":
+		return "wav"
+	case "audio/amr":
+		return "amr"
+
+		// ARCHIVE
+	case "application/epub+zip":
+		return "epub"
+	case "application/zip":
+		return "zip"
+	case "application/x-tar":
+		return "tar"
+	case "application/x-rar-compressed":
+		return "rar"
+	case "application/gzip":
+		return "gz"
+	case "application/x-bzip2":
+		return "bz2"
+	case "application/x-7z-compressed":
+		return "7z"
+	case "application/x-xz":
+		return "xz"
+	case "application/pdf":
+		return "pdf"
+	case "application/x-msdownload":
+		return "exe"
+	case "application/x-shockwave-flash":
+		return "swf"
+	case "application/rtf":
+		return "rtf"
+	case "application/octet-stream":
+		return "eot"
+	case "application/postscript":
+		return "ps"
+	case "application/x-sqlite3":
+		return "sqlite"
+	case "application/x-nintendo-nes-rom":
+		return "nes"
+	case "application/x-google-chrome-extension":
+		return "crx"
+	case "application/vnd.ms-cab-compressed":
+		return "cab"
+	case "application/x-deb":
+		return "deb"
+	case "application/x-unix-archive":
+		return "ar"
+	case "application/x-compress":
+		return "Z"
+	case "application/x-lzip":
+		return "lz"
+	case "application/x-rpm":
+		return "rpm"
+	case "application/x-executable":
+		return "elf"
+
+		// DOCUMENTS
+	case "application/msword":
+		return "doc"
+	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+		return "docx"
+	case "application/vnd.ms-excel":
+		return "xls"
+	case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+		return "xlsx"
+	case "application/vnd.ms-powerpoint":
+		return "ppt"
+	case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+		return "pptx"
+
+		// FONTS
+	case "application/font-woff":
+		warnExt(file, "woff2")
+		return "woff"
+	case "application/font-sfnt":
+		warnExt(file, "otf")
+		return "ttf"
+
+	default:
+		log.Fatalf("encoding `%s` not recognised. create a PR or issue if you think it should be\n", mime)
+		log.Fatalf("if you can provide details on the file `%v` as well, it would be appreciated", file)
+		return ""
+	}
+}
+
+func warnExt(file uint64, mime string) {
+	log.Printf("note that file `%v` should possibly have file extension `%s`", file, mime)
 }
