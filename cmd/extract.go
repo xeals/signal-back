@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/pkg/errors"
@@ -78,7 +79,9 @@ func ExtractAttachments(bf *types.BackupFile) error {
 			case "image/jpeg":
 				ext = "jpg"
 			default:
-				return errors.Errorf("encoding `%s` not recognised. create a PR or issue if you think it should be", enc)
+				log.Fatalf("encoding `%s` not recognised. create a PR or issue if you think it should be\n", enc)
+				log.Fatalf("if you can provide details on the file '%v' as well, it would be appreciated", *a.AttachmentId)
+				ext = ""
 			}
 
 			fileName := fmt.Sprintf("%v.%s", *a.AttachmentId, ext)
