@@ -83,6 +83,9 @@ func ExtractAttachments(bf *types.BackupFile) error {
 			if err = bf.DecryptAttachment(a, file); err != nil {
 				return errors.Wrap(err, "failed to decrypt attachment")
 			}
+			if err = file.Close(); err != nil {
+				return errors.Wrap(err, "failed to close output file")
+			}
 		}
 	}
 }
@@ -221,8 +224,8 @@ func getExt(mime string, file uint64) string {
 		return "ttf"
 
 	default:
-		log.Fatalf("encoding `%s` not recognised. create a PR or issue if you think it should be\n", mime)
-		log.Fatalf("if you can provide details on the file `%v` as well, it would be appreciated", file)
+		log.Printf("encoding `%s` not recognised. create a PR or issue if you think it should be\n", mime)
+		log.Printf("if you can provide details on the file `%v` as well, it would be appreciated", file)
 		return ""
 	}
 }

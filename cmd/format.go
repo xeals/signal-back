@@ -60,6 +60,11 @@ var Format = cli.Command{
 			if err != nil {
 				return errors.Wrap(err, "unable to open output file")
 			}
+			defer func() {
+				if file.Close() != nil {
+					log.Fatalf("unable to close output file: %s", err.Error())
+				}
+			}()
 		} else {
 			out = os.Stdout
 		}
