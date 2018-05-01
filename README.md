@@ -46,7 +46,7 @@ Building requires [Go](https://golang.org) and [dep](https://github.com/golang/d
 $ git clone https://github.com/xeals/signal-back $GOPATH/src/github.com/xeals/signal-back
 $ cd $GOPATH/src/github.com/xeals/signal-back
 $ dep ensure
-$ go install .
+$ go build .
 ```
 
 You can also just use `go get github.com/xeals/signal-back`, but I provide no guarantees on dependency compatibility.
