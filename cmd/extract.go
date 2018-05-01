@@ -75,7 +75,7 @@ func ExtractAttachments(bf *types.BackupFile) error {
 
 		if a := f.GetAttachment(); a != nil {
 			ext := getExt(aEncs[*a.AttachmentId], *a.AttachmentId)
-			fileName := fmt.Sprintf("%v.%s", *a.AttachmentId, ext)
+			fileName := fmt.Sprintf("%v%s", *a.AttachmentId, ext)
 			file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 			if err != nil {
 				return errors.Wrap(err, "failed to open output file")
@@ -95,133 +95,133 @@ func getExt(mime string, file uint64) string {
 	switch mime {
 	// IMAGE
 	case "image/jpeg":
-		return "jpg"
+		return ".jpg"
 	case "image/png":
-		return "png"
+		return ".png"
 	case "image/gif":
-		return "gif"
+		return ".gif"
 	case "image/webp":
-		return "webp"
+		return ".webp"
 	case "image/x-canon-cr2":
-		return "cr2"
+		return ".cr2"
 	case "image/tiff":
-		return "tif"
+		return ".tif"
 	case "image/bmp":
-		return "bmp"
+		return ".bmp"
 	case "image/vnd.ms-photo":
-		return "jxr"
+		return ".jxr"
 	case "image/vnd.adobe.photoshop":
-		return "psd"
+		return ".psd"
 	case "image/x-icon":
-		return "ico"
+		return ".ico"
 
 		// VIDEO
 	case "video/mp4":
-		return "mp4"
+		return ".mp4"
 	case "video/x-m4v":
-		return "m4v"
+		return ".m4v"
 	case "video/x-matroska":
-		return "mkv"
+		return ".mkv"
 	case "video/webm":
-		return "webm"
+		return ".webm"
 	case "video/quicktime":
-		return "mov"
+		return ".mov"
 	case "video/x-msvideo":
-		return "avi"
+		return ".avi"
 	case "video/x-ms-wmv":
-		return "wmv"
+		return ".wmv"
 	case "video/mpeg":
-		return "mpg"
+		return ".mpg"
 	case "video/x-flv":
-		return "flv"
+		return ".flv"
 
 		// AUDIO
 	case "audio/midi":
-		return "mid"
+		return ".mid"
 	case "audio/mpeg":
-		return "mp3"
+		return ".mp3"
 	case "audio/m4a":
-		return "m4a"
+		return ".m4a"
 	case "audio/ogg":
-		return "ogg"
+		return ".ogg"
 	case "audio/x-flac":
-		return "flac"
+		return ".flac"
 	case "audio/x-wav":
-		return "wav"
+		return ".wav"
 	case "audio/amr":
-		return "amr"
+		return ".amr"
 
 		// ARCHIVE
 	case "application/epub+zip":
-		return "epub"
+		return ".epub"
 	case "application/zip":
-		return "zip"
+		return ".zip"
 	case "application/x-tar":
-		return "tar"
+		return ".tar"
 	case "application/x-rar-compressed":
-		return "rar"
+		return ".rar"
 	case "application/gzip":
-		return "gz"
+		return ".gz"
 	case "application/x-bzip2":
-		return "bz2"
+		return ".bz2"
 	case "application/x-7z-compressed":
-		return "7z"
+		return ".7z"
 	case "application/x-xz":
-		return "xz"
+		return ".xz"
 	case "application/pdf":
-		return "pdf"
+		return ".pdf"
 	case "application/x-msdownload":
-		return "exe"
+		return ".exe"
 	case "application/x-shockwave-flash":
-		return "swf"
+		return ".swf"
 	case "application/rtf":
-		return "rtf"
+		return ".rtf"
 	case "application/octet-stream":
-		return "eot"
+		return ".eot"
 	case "application/postscript":
-		return "ps"
+		return ".ps"
 	case "application/x-sqlite3":
-		return "sqlite"
+		return ".sqlite"
 	case "application/x-nintendo-nes-rom":
-		return "nes"
+		return ".nes"
 	case "application/x-google-chrome-extension":
-		return "crx"
+		return ".crx"
 	case "application/vnd.ms-cab-compressed":
-		return "cab"
+		return ".cab"
 	case "application/x-deb":
-		return "deb"
+		return ".deb"
 	case "application/x-unix-archive":
-		return "ar"
+		return ".ar"
 	case "application/x-compress":
-		return "Z"
+		return ".Z"
 	case "application/x-lzip":
-		return "lz"
+		return ".lz"
 	case "application/x-rpm":
-		return "rpm"
+		return ".rpm"
 	case "application/x-executable":
-		return "elf"
+		return ".elf"
 
 		// DOCUMENTS
 	case "application/msword":
-		return "doc"
+		return ".doc"
 	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-		return "docx"
+		return ".docx"
 	case "application/vnd.ms-excel":
-		return "xls"
+		return ".xls"
 	case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-		return "xlsx"
+		return ".xlsx"
 	case "application/vnd.ms-powerpoint":
-		return "ppt"
+		return ".ppt"
 	case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-		return "pptx"
+		return ".pptx"
 
 		// FONTS
 	case "application/font-woff":
 		warnExt(file, "woff2")
-		return "woff"
+		return ".woff"
 	case "application/font-sfnt":
 		warnExt(file, "otf")
-		return "ttf"
+		return ".ttf"
 
 	default:
 		log.Printf("encoding `%s` not recognised. create a PR or issue if you think it should be\n", mime)
