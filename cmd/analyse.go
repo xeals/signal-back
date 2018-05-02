@@ -17,20 +17,7 @@ var Analyse = cli.Command{
 	UsageText:          "Display statistical information about the backup file.",
 	Aliases:            []string{"analyze"},
 	CustomHelpTemplate: SubcommandHelp,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "log, l",
-			Usage: "write logging output to `FILE`",
-		},
-		cli.StringFlag{
-			Name:  "password, p",
-			Usage: "use `PASS` as password for backup file",
-		},
-		cli.StringFlag{
-			Name:  "pwdfile, P",
-			Usage: "read password from `FILE`",
-		},
-	},
+	Flags:              coreFlags,
 	Action: func(c *cli.Context) error {
 		bf, err := setup(c)
 		if err != nil {

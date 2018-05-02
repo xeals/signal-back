@@ -18,24 +18,12 @@ var Extract = cli.Command{
 	Usage:              "Retrieve attachments from the backup",
 	UsageText:          "Decrypt files embedded in the backup.",
 	CustomHelpTemplate: SubcommandHelp,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "log, l",
-			Usage: "write logging output to `FILE`",
-		},
-		cli.StringFlag{
-			Name:  "password, p",
-			Usage: "use `PASS` as password for backup file",
-		},
-		cli.StringFlag{
-			Name:  "pwdfile, P",
-			Usage: "read password from `FILE`",
-		},
+	Flags: append([]cli.Flag{
 		cli.StringFlag{
 			Name:  "outdir, o",
 			Usage: "output attachments to `DIRECTORY`",
 		},
-	},
+	}, coreFlags...),
 	Action: func(c *cli.Context) error {
 		bf, err := setup(c)
 		if err != nil {
@@ -77,7 +65,7 @@ func ExtractAttachments(bf *types.BackupFile) error {
 		}
 
 		if a := f.GetAttachment(); a != nil {
-			log.Printf("found attachment binary %v\n\n", *a.AttachmentId)
+			log.Printf("found attachment binary %v\n", *a.AttachmentId)
 			id := *a.AttachmentId
 
 			mime, hasMime := aEncs[id]

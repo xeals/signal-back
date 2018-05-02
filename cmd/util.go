@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/pkg/errors"
@@ -32,7 +33,28 @@ const SubcommandHelp = `Usage: {{.HelpName}} [OPTION...] BACKUPFILE
   {{end}}{{end}}
 `
 
+var coreFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:  "password, p",
+		Usage: "use `PASS` as password for backup file",
+	},
+	cli.StringFlag{
+		Name:  "pwdfile, P",
+		Usage: "read password from `FILE`",
+	},
+	cli.BoolFlag{
+		Name:  "verbose, v",
+		Usage: "enable verbose logging output",
+	},
+}
+
 func setup(c *cli.Context) (*types.BackupFile, error) {
+	// -- Enable logging
+
+	if !c.Bool("verbose") {
+		log.SetOutput(ioutil.Discard)
+	}
+
 	// -- Verify
 
 	if c.Args().Get(0) == "" {
