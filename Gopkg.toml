@@ -44,3 +44,7 @@
 [[constraint]]
   name = "github.com/urfave/cli"
   version = "1.20.0"
+
+[[constraint]]
+  name = "github.com/h2non/filetype"
+  version = "1.0.5"

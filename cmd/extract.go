@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
+	"github.com/h2non/filetype"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"github.com/xeals/signal-back/types"
@@ -71,12 +73,19 @@ func ExtractAttachments(bf *types.BackupFile) error {
 		ps := f.GetStatement().GetParameters()
 		if len(ps) == 25 { // Contains blob information
 			aEncs[*ps[19].IntegerParameter] = *ps[3].StringParamter
+			log.Printf("found attachment metadata %v: `%v`\n", *ps[19].IntegerParameter, ps)
 		}
 
 		if a := f.GetAttachment(); a != nil {
-			ext := getExt(aEncs[*a.AttachmentId], *a.AttachmentId)
-			fileName := fmt.Sprintf("%v%s", *a.AttachmentId, ext)
+			log.Printf("found attachment binary %v\n\n", *a.AttachmentId)
+			id := *a.AttachmentId
+
+			mime, hasMime := aEncs[id]
+			ext := getExt(mime, id)
+
+			fileName := fmt.Sprintf("%v%s", id, ext)
 			file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+
 			if err != nil {
 				return errors.Wrap(err, "failed to open output file")
 			}
@@ -85,6 +94,22 @@ func ExtractAttachments(bf *types.BackupFile) error {
 			}
 			if err = file.Close(); err != nil {
 				return errors.Wrap(err, "failed to close output file")
+			}
+
+			if !hasMime { // Time to look into the file itself and guess.
+				buf, err := ioutil.ReadFile(fileName)
+				if err != nil {
+					return errors.Wrap(err, "failed to read output file for MIME detection")
+				}
+				kind, err := filetype.Match(buf)
+				if err != nil {
+					log.Printf("unable to detect file type: %s\n", err.Error())
+				}
+				if err = os.Rename(fileName, fileName+"."+kind.Extension); err != nil {
+					log.Println("unknown file type")
+					return errors.Wrap(err, "unable to rename output file")
+				}
+				log.Println("found file type:", kind.MIME)
 			}
 		}
 	}
@@ -222,6 +247,10 @@ func getExt(mime string, file uint64) string {
 	case "application/font-sfnt":
 		warnExt(file, "otf")
 		return ".ttf"
+
+	case "":
+		log.Printf("file `%v` has no associated SQL entry; going to have to guess at its encoding", file)
+		return ""
 
 	default:
 		log.Printf("encoding `%s` not recognised. create a PR or issue if you think it should be\n", mime)

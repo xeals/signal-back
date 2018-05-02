@@ -8,6 +8,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/h2non/filetype"
+  packages = ["."]
+  revision = "cc14fdc9ca0e4c2bafad7458f6ff79fd3947cfbb"
+  version = "v1.0.5"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -25,9 +31,18 @@
   packages = ["hkdf"]
   revision = "b2aa35443fbc700ab74c586ae79b81c171851023"
 
+[[projects]]
+  name = "gopkg.in/h2non/filetype.v1"
+  packages = [
+    "matchers",
+    "types"
+  ]
+  revision = "cc14fdc9ca0e4c2bafad7458f6ff79fd3947cfbb"
+  version = "v1.0.5"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "749de642a68468ba1bc2cdf2b65bfd6626f79ae2f1468afac765668bd267ebf1"
+  inputs-digest = "652287263fb82ba7e3e67a8a0ae74053654804e59a30bc6ffdcd6258d7de8d4c"
   solver-name = "gps-cdcl"
   solver-version = 1
