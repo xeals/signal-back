@@ -12,6 +12,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -213,7 +214,7 @@ func deriveSecrets(input, info []byte) []byte {
 	hkdf := hkdf.New(sha, input, salt, info)
 	_, err := io.ReadFull(hkdf, okm)
 	if err != nil {
-		fmt.Println("failed to generate hashes:", err.Error())
+		fmt.Fprintln(os.Stderr, "failed to generate hashes:", err.Error())
 	}
 
 	return okm

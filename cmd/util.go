@@ -51,7 +51,9 @@ var coreFlags = []cli.Flag{
 func setup(c *cli.Context) (*types.BackupFile, error) {
 	// -- Enable logging
 
-	if !c.Bool("verbose") {
+	if c.Bool("verbose") {
+		log.SetOutput(os.Stderr)
+	} else {
 		log.SetOutput(ioutil.Discard)
 	}
 
