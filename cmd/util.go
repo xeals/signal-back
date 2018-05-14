@@ -88,7 +88,7 @@ func readPassword(c *cli.Context) (string, error) {
 		pass = string(bs)
 	} else {
 		r := bufio.NewReader(os.Stdin)
-		fmt.Print("Password: ")
+		fmt.Fprint(os.Stderr, "Password: ")
 		t, err := r.ReadString('\n')
 		if err != nil {
 			return "", errors.Wrap(err, "unable to read from stdin")
