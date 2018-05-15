@@ -8,7 +8,7 @@ In version 4.17.5, the Signal Android app introduced encrypted backups. While th
 
 # Usage
 
-Either [build from source](#Building from source) or download a [pre-built binary](releases/) and put the executable somewhere you can find it.
+Either [build from source](#building-from-source) or download a [pre-built binary](releases/) and put the executable somewhere you can find it.
 
 ```
 Usage: signal-back COMMAND [OPTION...] BACKUPFILE
