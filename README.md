@@ -36,7 +36,7 @@ CSV supports MMS export, and XML is planned.
 
 # Example usage
 
-Download whichever binary suits your system from the [releases page](https://github.com/xeals/signal-back/releases); Windows, Mac OS (`darwin`), or Linux, and 32-bit (`386`) or 64-bit (`amd64`). Checksums are provided to verify file integrity.
+Download whichever binary suits your system from the [releases page](https://github.com/xeals/signal-back/releases/latest); Windows, Mac OS (`darwin`), or Linux, and 32-bit (`386`) or 64-bit (`amd64`). Checksums are provided to verify file integrity.
 
 Find where you downloaded the file and open an interactive shell (Command Prompt, Terminal.app, gnome-terminal, etc.). Make sure your `signal-XXX.backup` file is in the same folder.
 
