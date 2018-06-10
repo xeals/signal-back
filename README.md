@@ -8,7 +8,7 @@ In version 4.17.5, the Signal Android app introduced encrypted backups. While th
 
 # Usage
 
-Either [build from source](#building-from-source) or download a [pre-built binary](releases/) and put the executable somewhere you can find it.
+Either [build from source](#building-from-source) or download a [pre-built binary](https://github.com/xeals/signal-back/releases) and put the executable somewhere you can find it.
 
 ```
 Usage: signal-back COMMAND [OPTION...] BACKUPFILE
@@ -36,7 +36,7 @@ CSV supports MMS export, and XML is planned.
 
 # Example usage
 
-Download whichever binary suits your system from the [releases page](https://github.com/xeals/signal-back/releases/latest); Windows, Mac OS (`darwin`), or Linux, and 32-bit (`386`) or 64-bit (`amd64`). Checksums are provided to verify file integrity.
+Download whichever binary suits your system from the [releases page](https://github.com/xeals/signal-back/releases); Windows, Mac OS (`darwin`), or Linux, and 32-bit (`386`) or 64-bit (`amd64`). Checksums are provided to verify file integrity.
 
 Find where you downloaded the file and open an interactive shell (Command Prompt, Terminal.app, gnome-terminal, etc.). Make sure your `signal-XXX.backup` file is in the same folder.
 
