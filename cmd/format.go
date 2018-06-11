@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/csv"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,10 @@ import (
 	"github.com/urfave/cli"
 	"github.com/xeals/signal-back/types"
 )
+
+const csvHeaders string = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<?xml-stylesheet type="text/xsl" href="sms.xsl"?>
+`
 
 // Format fulfils the `format` subcommand.
 var Format = cli.Command{
@@ -59,6 +64,11 @@ var Format = cli.Command{
 			out = os.Stdout
 		}
 
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Fprintln(os.Stderr, "Panicked during formatting:", r)
+			}
+		}()
 		switch strings.ToLower(c.String("format")) {
 		case "csv":
 			err = CSV(bf, strings.ToLower(c.String("message")), out)
@@ -178,15 +188,15 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 		}
 	}
 
-	smses.Count = len(smses.SMS)
-	x, err := xml.Marshal(smses)
-	if err != nil {
-		return errors.Wrap(err, "unable to format XML")
+	// Headers
+	if _, err := out.Write([]byte(csvHeaders)); err != nil {
+		return errors.Wrap(err, "failed to write out XML")
 	}
 
-	w := types.NewMultiWriter(out)
-	w.W([]byte(`<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>`))
-	w.W([]byte(`<?xml-stylesheet type="text/xsl" href="sms.xsl"?>`))
-	w.W(x)
-	return errors.WithMessage(w.Error(), "failed to write out XML")
+	smses.Count = len(smses.SMS)
+
+	// x, err := xml.Marshal(smses)
+	enc := xml.NewEncoder(out)
+	enc.Indent("", "  ")
+	return errors.WithMessage(enc.Encode(smses), "unable to format XML")
 }
