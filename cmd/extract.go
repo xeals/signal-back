@@ -54,7 +54,7 @@ func ExtractAttachments(bf *types.BackupFile) error {
 	aEncs := make(map[uint64]string)
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Panicked during extraction:", r)
+			fmt.Fprintln(os.Stderr, "Panicked during extraction:", r)
 		}
 	}()
 	for {

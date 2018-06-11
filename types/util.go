@@ -1,8 +1,9 @@
 package types
 
 import (
+	"fmt"
 	"io"
-	"log"
+	"os"
 )
 
 // MultiWriter is a convenience wrapper around an io.Writer to allow multiple
@@ -33,9 +34,9 @@ func (w *MultiWriter) Error() error {
 
 func rescue(v ...interface{}) {
 	if r := recover(); r != nil {
-		log.Println("Panicked:", r)
+		fmt.Fprintln(os.Stderr, "Panicked:", r)
 		if v != nil {
-			log.Println(v)
+			fmt.Fprintln(os.Stderr, v)
 		}
 	}
 }
