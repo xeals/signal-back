@@ -17,7 +17,12 @@ var Analyse = cli.Command{
 	UsageText:          "Display statistical information about the backup file.",
 	Aliases:            []string{"analyze"},
 	CustomHelpTemplate: SubcommandHelp,
-	Flags:              coreFlags,
+	Flags: append([]cli.Flag{
+		cli.BoolFlag{
+			Name:  "examples, e",
+			Usage: "display the first instance of each entry as an example",
+		},
+	}, coreFlags...),
 	Action: func(c *cli.Context) error {
 		bf, err := setup(c)
 		if err != nil {
@@ -25,10 +30,21 @@ var Analyse = cli.Command{
 		}
 
 		a, err := AnalyseTables(bf)
-		fmt.Println("This is still largely in flux and reflects whatever task I was having issues with at the time.\n")
-		fmt.Println(a)
+		if err != nil {
+			return cli.NewExitError("unable to analyse tables", 1)
+		}
 
-		fmt.Println("part:", len(examples["insert_into_part"].GetParameters()), examples["insert_into_part"])
+		fmt.Println("COMMAND : INSTANCES")
+		for k, v := range a {
+			fmt.Printf("%s : %v\n", k, v)
+		}
+
+		if c.Bool("examples") {
+			fmt.Println("\nCOMMAND : EXAMPLE")
+			for k, v := range examples {
+				fmt.Printf("%s : %v\n", k, v)
+			}
+		}
 
 		return errors.WithMessage(err, "failed to analyse tables")
 	},

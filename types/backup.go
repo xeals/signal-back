@@ -6,8 +6,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	_ "crypto/sha256"
-	_ "crypto/sha512"
+	_ "crypto/sha256" // algorithm
+	_ "crypto/sha512" // algorithm
 	"fmt"
 	"hash"
 	"io"
@@ -169,6 +169,8 @@ func (bf *BackupFile) DecryptAttachment(a *signal.Attachment, out io.Writer) err
 // Note that any attachments in the backup file will not be handled.
 func (bf *BackupFile) Slurp() ([]*signal.BackupFrame, error) {
 	frames := []*signal.BackupFrame{}
+	defer rescue("slurping", len(frames))
+
 	for {
 		f, err := bf.Frame()
 		if err != nil {
@@ -233,5 +235,4 @@ func uint32ToBytes(b []byte, val uint32) {
 	b[2] = byte(val >> 8)
 	b[1] = byte(val >> 16)
 	b[0] = byte(val >> 24)
-	return
 }
