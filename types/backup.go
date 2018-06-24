@@ -12,6 +12,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
@@ -27,6 +28,7 @@ var ProtoCommitHash = "d6610f0"
 // BackupFile holds the internal state of decryption of a Signal backup.
 type BackupFile struct {
 	File      *bytes.Buffer
+	FileSize  int
 	CipherKey []byte
 	MacKey    []byte
 	Mac       hash.Hash
@@ -43,19 +45,14 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 	}
 
 	fileBuf := bytes.NewBuffer(fileBytes)
+	size := fileBuf.Len()
 
 	headerLengthBytes := make([]byte, 4)
-	_, err = io.ReadFull(fileBuf, headerLengthBytes)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read headerLengthBytes")
-	}
+	readFull(fileBuf, headerLengthBytes, "reading header length")
 	headerLength := bytesToUint32(headerLengthBytes)
 
 	headerFrame := make([]byte, headerLength)
-	_, err = io.ReadFull(fileBuf, headerFrame)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read headerFrame")
-	}
+	readFull(fileBuf, headerFrame, "reading header frame")
 	frame := &signal.BackupFrame{}
 	if err = proto.Unmarshal(headerFrame, frame); err != nil {
 		return nil, errors.Wrap(err, "failed to decode header")
@@ -73,6 +70,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 
 	return &BackupFile{
 		File:      fileBuf,
+		FileSize:  size,
 		CipherKey: cipherKey,
 		MacKey:    macKey,
 		Mac:       hmac.New(crypto.SHA256.New, macKey),
@@ -88,11 +86,13 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	}
 
 	length := make([]byte, 4)
-	io.ReadFull(bf.File, length)
+	readFull(bf.File, length, "reading frame length")
 	frameLength := bytesToUint32(length)
+	defer rescue(fmt.Sprintf("frame: starting at %v, size %v", bf.FileSize-bf.File.Len(), frameLength))
 
 	frame := make([]byte, frameLength)
-	io.ReadFull(bf.File, frame)
+	readFull(bf.File, frame, "initialising frame")
+	// log.Printf("read frame of size %v", frameLength)
 
 	theirMac := frame[:len(frame)-10]
 
@@ -135,13 +135,7 @@ func (bf *BackupFile) DecryptAttachment(a *signal.Attachment, out io.Writer) err
 	bf.Mac.Write(bf.IV)
 
 	buf := make([]byte, *a.Length)
-	n, err := io.ReadFull(bf.File, buf)
-	if err != nil {
-		return errors.Wrap(err, "failed to read att")
-	}
-	if n != len(buf) {
-		return errors.Errorf("didn't read enough bytes: %v, %v\n", n, len(buf))
-	}
+	readFull(bf.File, buf, "reading attachment")
 	bf.Mac.Write(buf)
 
 	output := make([]byte, *a.Length)
@@ -151,7 +145,7 @@ func (bf *BackupFile) DecryptAttachment(a *signal.Attachment, out io.Writer) err
 	}
 
 	theirMac := make([]byte, 10)
-	io.ReadFull(bf.File, theirMac)
+	readFull(bf.File, theirMac, "decrypting attachment")
 	ourMac := bf.Mac.Sum(nil)
 
 	if bytes.Equal(theirMac, ourMac) {
@@ -235,4 +229,14 @@ func uint32ToBytes(b []byte, val uint32) {
 	b[2] = byte(val >> 8)
 	b[1] = byte(val >> 16)
 	b[0] = byte(val >> 24)
+}
+
+func readFull(r io.Reader, buf []byte, context string) {
+	n, err := io.ReadFull(r, buf)
+	if err != nil {
+		log.Fatalf("error reading: %s: %s", context, err.Error())
+	}
+	if n != len(buf) {
+		log.Panicf("unexpected EOF: %s", context)
+	}
 }

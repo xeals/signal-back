@@ -37,6 +37,7 @@ func rescue(v ...interface{}) {
 		fmt.Fprintln(os.Stderr, "Panicked:", r)
 		if v != nil {
 			fmt.Fprintln(os.Stderr, v)
+			os.Exit(2)
 		}
 	}
 }
