@@ -45,14 +45,14 @@ Find where you downloaded the file and open an interactive shell (Command Prompt
 If you're on Windows:
 
 ```sh
-signal-back_windows_amd64.exe format -f XML > backup.xml signal-XXX.backup
+signal-back_windows_amd64.exe format -f XML signal-XXX.backup > backup.xml
 ```
 
 If you're on MacOS or Linux (where e.g., `OS` is `darwin` and `ARCH` is `amd64`):
 
 ```sh
 chmod +x signal-back_OS_ARCH
-./signal-back_OS_ARCH format -f XML > backup.xml signal-XXX.backup
+./signal-back_OS_ARCH format -f XML signal-XXX.backup > backup.xml
 ```
 
 Enter your 30-digit password at the prompt (with or without spaces, doesn't matter).
