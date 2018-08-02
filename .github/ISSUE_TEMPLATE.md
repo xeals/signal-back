@@ -4,3 +4,7 @@
 - Build version (`signal-back --version`):
 
 # Detailed description
+
+
+# Full relevant output
+<!-- Make sure you run using the -v flag. -->
