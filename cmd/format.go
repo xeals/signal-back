@@ -140,6 +140,7 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	smses := &types.SMSes{}
 	mmses := map[uint64]types.MMS{}
 	mmsParts := map[uint64][]types.MMSPart{}
+	warnedMMS := false
 
 	for {
 		f, err := bf.Frame()
@@ -164,9 +165,10 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 				}
 			}
 
-			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") {
+			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") && !warnedMMS {
 				// TODO this
 				log.Println("MMS export not yet supported")
+				warnedMMS = true
 			}
 
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO part") {
