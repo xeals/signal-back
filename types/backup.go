@@ -27,6 +27,7 @@ var ProtoCommitHash = "d6610f0"
 // BackupFile holds the internal state of decryption of a Signal backup.
 type BackupFile struct {
 	File      *bytes.Buffer
+	FileSize  int
 	CipherKey []byte
 	MacKey    []byte
 	Mac       hash.Hash
@@ -43,6 +44,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 	}
 
 	fileBuf := bytes.NewBuffer(fileBytes)
+	size := fileBuf.Len()
 
 	headerLengthBytes := make([]byte, 4)
 	_, err = io.ReadFull(fileBuf, headerLengthBytes)
@@ -73,6 +75,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 
 	return &BackupFile{
 		File:      fileBuf,
+		FileSize:  size,
 		CipherKey: cipherKey,
 		MacKey:    macKey,
 		Mac:       hmac.New(crypto.SHA256.New, macKey),
@@ -90,6 +93,7 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	length := make([]byte, 4)
 	io.ReadFull(bf.File, length)
 	frameLength := bytesToUint32(length)
+	defer rescue(fmt.Sprintf("frame: starting at %v, size %v; %v remaining in file", bf.FileSize-bf.File.Len(), frameLength, bf.File.Len()))
 
 	frame := make([]byte, frameLength)
 	io.ReadFull(bf.File, frame)

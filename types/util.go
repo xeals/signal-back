@@ -1,6 +1,10 @@
 package types
 
-import "io"
+import (
+	"io"
+	"log"
+	"os"
+)
 
 // MultiWriter is a convenience wrapper around an io.Writer to allow multiple
 // consecutive (safe) writes.
@@ -26,4 +30,14 @@ func (w *MultiWriter) W(p []byte) {
 // Error returns the final error message of the writer.
 func (w *MultiWriter) Error() error {
 	return w.err
+}
+
+func rescue(v ...interface{}) {
+	if r := recover(); r != nil {
+		log.Println("Panicked:", r)
+		if v != nil {
+			log.Println(v)
+			os.Exit(2)
+		}
+	}
 }

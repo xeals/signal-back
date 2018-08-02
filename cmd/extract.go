@@ -52,6 +52,11 @@ var Extract = cli.Command{
 // outputs them in the current working directory.
 func ExtractAttachments(bf *types.BackupFile) error {
 	aEncs := make(map[uint64]string)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Panicked during extraction:", r)
+		}
+	}()
 	for {
 		f, err := bf.Frame()
 		if err != nil {
