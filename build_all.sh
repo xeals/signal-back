@@ -21,6 +21,11 @@ for OS in ${BUILD_OSS[@]} ; do
         NAME="signal-back_${OS}_${ARCH}"
         echo "Building for ${OS}/${ARCH}"
 
+        # .exe extension
+        if [[ ${OS} == "windows" ]] ; then
+            NAME="${NAME}.exe"
+        fi
+
         GOOS=$OS GOARCH=$ARCH go build -ldflags "-X main.version=${BUILD_VER}" \
         -o "${BUILD_ROOT}/release/${NAME}" .
         shasum -a 256 "${BUILD_ROOT}/release/${NAME}" > "${BUILD_ROOT}/release/${NAME}.sha256"
