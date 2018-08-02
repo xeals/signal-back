@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+	"github.com/xeals/signal-back/signal"
 	"github.com/xeals/signal-back/types"
 )
 
@@ -18,7 +19,7 @@ import (
 var Format = cli.Command{
 	Name:               "format",
 	Usage:              "Read and format the backup file",
-	UsageText:          "Parse and transform the backup file into other formats.\nValid formats include: CSV, XML.",
+	UsageText:          "Parse and transform the backup file into other formats.\nValid formats include: CSV, XML, RAW.",
 	CustomHelpTemplate: SubcommandHelp,
 	Flags: append([]cli.Flag{
 		cli.StringFlag{
@@ -67,6 +68,8 @@ var Format = cli.Command{
 		case "json":
 			// err = formatJSON(bf, out)
 			return errors.New("JSON is still TODO")
+		case "raw":
+			err = Raw(bf, out)
 		default:
 			return errors.Errorf("format %s not recognised", c.String("format"))
 		}
@@ -137,6 +140,7 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	smses := &types.SMSes{}
 	mmses := map[uint64]types.MMS{}
 	mmsParts := map[uint64][]types.MMSPart{}
+
 	for {
 		f, err := bf.Frame()
 		if err != nil {
@@ -189,4 +193,34 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	w.W([]byte("<?xml-stylesheet type=\"text/xsl\" href=\"sms.xsl\" ?>\n"))
 	w.W(x)
 	return errors.WithMessage(w.Error(), "failed to write out XML")
+}
+
+// Raw performs an ever plainer dump than CSV, and is largely unusable for any purpose outside
+// debugging.
+func Raw(bf *types.BackupFile, out io.Writer) error {
+	var (
+		err error
+		f   *signal.BackupFrame
+	)
+
+	for {
+		f, err = bf.Frame()
+		if err != nil {
+			break
+		}
+
+		// Attachment needs removing
+		if a := f.GetAttachment(); a != nil {
+			err := bf.DecryptAttachment(a, ioutil.Discard)
+			if err != nil {
+				return errors.Wrap(err, "unable to chew through attachment")
+			}
+		}
+
+		if stmt := f.GetStatement(); stmt != nil {
+			out.Write([]byte(stmt.String()))
+			out.Write([]byte{'\n'})
+		}
+	}
+	return nil
 }
