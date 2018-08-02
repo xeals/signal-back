@@ -4,19 +4,6 @@ notifications:
   email: false
 jobs:
   include:
-    - stage: test
-      go_import_path: github.com/xeals/signal-back
-      env:
-        - DEP_VERSION="0.4.1"
-      before_install:
-        - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
-        - chmod +x $GOPATH/bin/dep
-      install:
-        - dep ensure
-      os: linux
-      go: 1.10.x
-      script:
-        - go build -v .
     - stage: deploy
       go_import_path: github.com/xeals/signal-back
       env:
@@ -43,8 +30,8 @@ jobs:
             - release/signal-back_linux_386.sha256
             - release/signal-back_linux_amd64
             - release/signal-back_linux_amd64.sha256
-            - release/signal-back_windows_386
-            - release/signal-back_windows_386.sha256
+            - release/signal-back_windows_386.exe
+            - release/signal-back_windows_386.exe.sha256
             - release/signal-back_windows_amd64
             - release/signal-back_windows_amd64.sha256
           skip_cleanup: true
