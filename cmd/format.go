@@ -179,14 +179,14 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	}
 
 	smses.Count = len(smses.SMS)
-	x, err := xml.Marshal(smses)
+	x, err := xml.MarshalIndent(smses, "", "  ")
 	if err != nil {
 		return errors.Wrap(err, "unable to format XML")
 	}
 
 	w := types.NewMultiWriter(out)
-	w.W([]byte(`<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>`))
-	w.W([]byte(`<?xml-stylesheet type="text/xsl" href="sms.xsl"?>`))
+	w.W([]byte("<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>\n"))
+	w.W([]byte("<?xml-stylesheet type=\"text/xsl\" href=\"sms.xsl\" ?>\n"))
 	w.W(x)
 	return errors.WithMessage(w.Error(), "failed to write out XML")
 }
