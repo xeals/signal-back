@@ -4,8 +4,8 @@
 [[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
-  version = "v1.0.0"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/h2non/filetype"
@@ -29,7 +29,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["hkdf"]
-  revision = "b2aa35443fbc700ab74c586ae79b81c171851023"
+  revision = "de0752318171da717af4ce24d0a2e8626afaeb11"
 
 [[projects]]
   name = "gopkg.in/h2non/filetype.v1"
@@ -43,6 +43,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "652287263fb82ba7e3e67a8a0ae74053654804e59a30bc6ffdcd6258d7de8d4c"
+  inputs-digest = "cca831ca76c6a35948d50bcd77338824a33184fd7ed009c4aa54ddcd93a9651b"
   solver-name = "gps-cdcl"
   solver-version = 1
