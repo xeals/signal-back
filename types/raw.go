@@ -206,7 +206,7 @@ func StatementToMMS(sql *signal.SqlStatement) *SQLMMS {
 
 // ParametersToMMS converts a set of SQL parameters to a single MMS.
 func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
-	if len(ps) != 42 {
+	if len(ps) < 42 {
 		return nil
 	}
 	return &SQLMMS{
@@ -293,7 +293,7 @@ func StatementToPart(sql *signal.SqlStatement) *SQLPart {
 
 // ParametersToPart converts a set of SQL parameters to a single part.
 func ParametersToPart(ps []*signal.SqlStatement_SqlParameter) *SQLPart {
-	if len(ps) != 25 {
+	if len(ps) < 25 {
 		return nil
 	}
 	return &SQLPart{
