@@ -109,7 +109,7 @@ type MMS struct {
 	MId          string    `xml:"m_id,attr"`          // required
 	DateSent     uint64    `xml:"date_sent,attr"`     // required
 	Seen         uint64    `xml:"seen,attr"`          // required
-	MType        uint64    `xml:"m_type,attr"`        // required
+	MType        *uint64   `xml:"m_type,attr"`        // required
 	V            uint64    `xml:"v,attr"`             // required
 	Exp          string    `xml:"exp,attr"`           // required
 	Pri          uint64    `xml:"pri,attr"`           // required
@@ -203,7 +203,6 @@ func NewMMSFromStatement(stmt *signal.SqlStatement) (uint64, *MMS, error) {
 		RetrTxtCs:    "null",
 		DateSent:     *mms.DateSent / 1000,
 		Seen:         mms.Read,
-		MType:        *mms.MessageType,
 		Exp:          "null",
 		RespTxt:      "null",
 		RptA:         "null",
@@ -213,20 +212,10 @@ func NewMMSFromStatement(stmt *signal.SqlStatement) (uint64, *MMS, error) {
 		ReadableDate: *intToTime(mms.DateReceived),
 	}
 
-	switch xml.MType {
-	case MMSSendReq:
-		xml.MsgBox = 2
-		xml.V = 18
-		break
-	case MMSNotificationInd:
-		return 0, nil, errors.Errorf("skipping message with type %v", xml.MType)
-	case MMSRetrieveConf:
-		xml.MsgBox = 1
-		xml.V = 16
-		break
-	default:
-		log.Fatalf("unsupported message type %v encountered on MMS #%d:\nplease report this issue, as well as (if possible) details about the MMS", xml.MType, mms.ID)
-		break
+	if mms.MessageType != nil {
+		if err := SetMMSMessageType(*mms.MessageType, &xml); err != nil {
+			log.Fatalf("%v\nplease report this issue, as well as (if possible) details about the MMS\nthe ID of the offending MMS is: %d", err, mms.ID)
+		}
 	}
 
 	if mms.RetrSt != nil {
@@ -297,6 +286,27 @@ func NewMMSFromStatement(stmt *signal.SqlStatement) (uint64, *MMS, error) {
 	}
 
 	return mms.ID, &xml, nil
+}
+
+func SetMMSMessageType(messageType uint64, mms *MMS) error {
+	switch messageType {
+	case MMSSendReq:
+		mms.MsgBox = 2
+		mms.V = 18
+		break
+	case MMSNotificationInd:
+		// We can safely ignore this case.
+		break
+	case MMSRetrieveConf:
+		mms.MsgBox = 1
+		mms.V = 16
+		break
+	default:
+		return errors.Errorf("unsupported message type %v encountered", messageType)
+	}
+
+	mms.MType = &messageType
+	return nil
 }
 
 func NewPartFromStatement(stmt *signal.SqlStatement) (uint64, *MMSPart, error) {

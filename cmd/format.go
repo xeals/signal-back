@@ -232,6 +232,15 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 		}
 		mms.Parts = parts
 		mms.MSize = &messageSize
+		if mms.MType == nil {
+			if types.SetMMSMessageType(types.MMSSendReq, &mms) != nil {
+				panic("logic error: this should never happen")
+			}
+			smses.MMS = append(smses.MMS, mms)
+			if types.SetMMSMessageType(types.MMSRetrieveConf, &mms) != nil {
+				panic("logic error: this should never happen")
+			}
+		}
 		smses.MMS = append(smses.MMS, mms)
 	}
 
