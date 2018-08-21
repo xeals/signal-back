@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -137,10 +140,17 @@ func CSV(bf *types.BackupFile, message string, out io.Writer) error {
 // uses. Layout described at their website
 // http://synctech.com.au/fields-in-xml-backup-files/
 func XML(bf *types.BackupFile, out io.Writer) error {
+	type attachmentDetails struct {
+		Size uint64
+		Body string
+	}
+
+	var attachmentBuffer bytes.Buffer
+	attachmentEncoder := base64.NewEncoder(base64.StdEncoding, &attachmentBuffer)
+	attachments := map[uint64]attachmentDetails{}
 	smses := &types.SMSes{}
 	mmses := map[uint64]types.MMS{}
 	mmsParts := map[uint64][]types.MMSPart{}
-	warnedMMS := false
 
 	for {
 		f, err := bf.Frame()
@@ -150,10 +160,16 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 
 		// Attachment needs removing
 		if a := f.GetAttachment(); a != nil {
-			err := bf.DecryptAttachment(a, ioutil.Discard)
+			err := bf.DecryptAttachment(a, attachmentEncoder)
+			attachmentEncoder.Close()
 			if err != nil {
-				return errors.Wrap(err, "unable to chew through attachment")
+				return errors.Wrap(err, "unable to process attachment")
 			}
+			attachments[*a.AttachmentId] = attachmentDetails{
+				Size: uint64(*a.Length),
+				Body: attachmentBuffer.String(),
+			}
+			attachmentBuffer.Reset()
 		}
 
 		if stmt := f.GetStatement(); stmt != nil {
@@ -165,23 +181,67 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 				}
 			}
 
-			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") && !warnedMMS {
-				// TODO this
-				log.Println("MMS export not yet supported")
-				warnedMMS = true
+			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") {
+				id, mms, err := types.NewMMSFromStatement(stmt)
+				if err == nil {
+					mmses[id] = *mms
+				}
 			}
 
 			if strings.HasPrefix(*stmt.Statement, "INSERT INTO part") {
-				// TODO also this
+				mmsId, part, err := types.NewPartFromStatement(stmt)
+				if err == nil {
+					mmsParts[mmsId] = append(mmsParts[mmsId], *part)
+				}
 			}
 		}
 	}
 
-	for id, p := range mmsParts {
-		if mms, ok := mmses[id]; ok {
-			mms.Parts = p
-			smses.MMS = append(smses.MMS, mms)
+	for id, mms := range mmses {
+		var messageSize uint64
+		parts, ok := mmsParts[id]
+		if ok {
+			for i := 0; i < len(parts); i++ {
+				if attachment, ok := attachments[parts[i].UniqueID]; ok {
+					messageSize += attachment.Size
+					parts[i].Data = &attachment.Body
+				}
+			}
 		}
+		if mms.Body != nil && len(*mms.Body) > 0 {
+			parts = append(parts, types.MMSPart{
+				Seq:   0,
+				Ct:    "text/plain",
+				Name:  "null",
+				ChSet: types.CharsetUTF8,
+				Cd:    "null",
+				Fn:    "null",
+				CID:   "null",
+				Cl:    fmt.Sprintf("txt%06d.txt", id),
+				CttS:  "null",
+				CttT:  "null",
+				Text:  *mms.Body,
+			})
+			messageSize += uint64(len(*mms.Body))
+			if len(parts) == 1 {
+				mms.TextOnly = 1
+			}
+		}
+		if len(parts) == 0 {
+			continue
+		}
+		mms.Parts = parts
+		mms.MSize = &messageSize
+		if mms.MType == nil {
+			if types.SetMMSMessageType(types.MMSSendReq, &mms) != nil {
+				panic("logic error: this should never happen")
+			}
+			smses.MMS = append(smses.MMS, mms)
+			if types.SetMMSMessageType(types.MMSRetrieveConf, &mms) != nil {
+				panic("logic error: this should never happen")
+			}
+		}
+		smses.MMS = append(smses.MMS, mms)
 	}
 
 	smses.Count = len(smses.SMS)
