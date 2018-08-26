@@ -34,6 +34,12 @@ Current export formats are:
 
 CSV supports MMS export, and XML is planned.
 
+# Password
+
+The password you need to decrypt the content of the Signal backup file was shown to you by Signal when you enabled local backups [similar to this screenshot](https://user-images.githubusercontent.com/8427572/36796616-d9560ee6-1c9d-11e8-8440-99e7f5f2ee03.JPG). It consists of six groups of five digits.
+
+You an enter the password in the interactive dialog such as `12345 12345 12345 12345 12345 12345` or you can write it in a text file and pass it to signal-back similar to `-P password.txt`. 
+
 # Example usage
 
 Download whichever binary suits your system from the [releases page](https://github.com/xeals/signal-back/releases); Windows, Mac OS (`darwin`), or Linux, and 32-bit (`386`) or 64-bit (`amd64`). Checksums are provided to verify file integrity.
