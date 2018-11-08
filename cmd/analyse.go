@@ -25,7 +25,7 @@ var Analyse = cli.Command{
 		}
 
 		a, err := AnalyseTables(bf)
-		fmt.Println("This is still largely in flux and reflects whatever task I was having issues with at the time.\n")
+		fmt.Println("This is still largely in flux and reflects whatever task I was having issues with at the time.")
 		fmt.Println(a)
 
 		fmt.Println("part:", len(examples["insert_into_part"].GetParameters()), examples["insert_into_part"])

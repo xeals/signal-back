@@ -161,7 +161,7 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 		// Attachment needs removing
 		if a := f.GetAttachment(); a != nil {
 			err := bf.DecryptAttachment(a, attachmentEncoder)
-			attachmentEncoder.Close()
+			_ = attachmentEncoder.Close()
 			if err != nil {
 				return errors.Wrap(err, "unable to process attachment")
 			}
@@ -273,15 +273,16 @@ func Raw(bf *types.BackupFile, out io.Writer) error {
 
 		// Attachment needs removing
 		if a := f.GetAttachment(); a != nil {
-			err := bf.DecryptAttachment(a, ioutil.Discard)
-			if err != nil {
+			if err = bf.DecryptAttachment(a, ioutil.Discard); err != nil {
 				return errors.Wrap(err, "unable to chew through attachment")
 			}
 		}
 
 		if stmt := f.GetStatement(); stmt != nil {
-			out.Write([]byte(stmt.String()))
-			out.Write([]byte{'\n'})
+			b := append([]byte(stmt.String()), []byte{'\n'}...)
+			if _, err = out.Write(b); err != nil {
+				return errors.Wrap(err, "unable to write statement")
+			}
 		}
 	}
 	return nil

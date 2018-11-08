@@ -45,6 +45,7 @@ var (
 		"EXPIRE_STARTED",
 		"NOTIFIED",
 		"READ_RECEIPT_COUNT",
+		"UNIDENTIFIED",
 	}
 
 	MMSCSVHeaders = []string{
@@ -90,6 +91,7 @@ var (
 		"EXPIRE_STARTED",
 		"NOTIFIED",
 		"READ_RECEIPT_COUNT",
+		"UNIDENTIFIED",
 	}
 )
 
@@ -116,6 +118,7 @@ type SQLSMS struct {
 	ExpireStarted        uint64 // default 0
 	Notified             uint64 // default 0
 	ReadReceiptCount     uint64 // default 0
+	Unidentified         uint64 // default 0
 }
 
 // StatementToSMS converts a of SQL statement to a single SMS.
@@ -125,7 +128,7 @@ func StatementToSMS(sql *signal.SqlStatement) *SQLSMS {
 
 // ParametersToSMS converts a set of SQL parameters to a single SMS.
 func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
-	if len(ps) != 22 {
+	if len(ps) != 23 {
 		return nil
 	}
 	return &SQLSMS{
@@ -151,6 +154,7 @@ func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
 		ExpireStarted:        ps[19].GetIntegerParameter(),
 		Notified:             ps[20].GetIntegerParameter(),
 		ReadReceiptCount:     ps[21].GetIntegerParameter(),
+		Unidentified:         ps[21].GetIntegerParameter(),
 	}
 }
 
@@ -197,6 +201,7 @@ type SQLMMS struct {
 	ExpireStarted        uint64 // default 0
 	Notified             uint64 // default 0
 	ReadReceiptCount     uint64 // default 0
+	Unidentified         uint64 // default 0
 }
 
 // StatementToMMS converts a of SQL statement to a single MMS.
@@ -206,7 +211,7 @@ func StatementToMMS(sql *signal.SqlStatement) *SQLMMS {
 
 // ParametersToMMS converts a set of SQL parameters to a single MMS.
 func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
-	if len(ps) < 42 {
+	if len(ps) < 43 {
 		return nil
 	}
 	return &SQLMMS{
@@ -252,6 +257,7 @@ func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
 		ExpireStarted:        ps[39].GetIntegerParameter(),
 		Notified:             ps[40].GetIntegerParameter(),
 		ReadReceiptCount:     ps[41].GetIntegerParameter(),
+		Unidentified:         ps[42].GetIntegerParameter(),
 	}
 }
 
