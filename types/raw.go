@@ -128,9 +128,16 @@ func StatementToSMS(sql *signal.SqlStatement) *SQLSMS {
 
 // ParametersToSMS converts a set of SQL parameters to a single SMS.
 func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
-	if len(ps) != 23 {
+	if len(ps) < 22 {
 		return nil
 	}
+
+	// special case for new backup format
+	var unidentified uint64
+	if len(ps) == 23 {
+		unidentified = ps[22].GetIntegerParameter()
+	}
+
 	return &SQLSMS{
 		ID:                   ps[0].GetIntegerParameter(),
 		ThreadID:             ps[1].IntegerParameter,
@@ -154,7 +161,7 @@ func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
 		ExpireStarted:        ps[19].GetIntegerParameter(),
 		Notified:             ps[20].GetIntegerParameter(),
 		ReadReceiptCount:     ps[21].GetIntegerParameter(),
-		Unidentified:         ps[21].GetIntegerParameter(),
+		Unidentified:         unidentified,
 	}
 }
 
@@ -211,9 +218,16 @@ func StatementToMMS(sql *signal.SqlStatement) *SQLMMS {
 
 // ParametersToMMS converts a set of SQL parameters to a single MMS.
 func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
-	if len(ps) < 43 {
+	if len(ps) < 42 {
 		return nil
 	}
+
+	// special case for new backup format
+	var unidentified uint64
+	if len(ps) == 43 {
+		unidentified = ps[42].GetIntegerParameter()
+	}
+
 	return &SQLMMS{
 		ID:                   ps[0].GetIntegerParameter(),
 		ThreadID:             ps[1].IntegerParameter,
@@ -257,7 +271,7 @@ func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
 		ExpireStarted:        ps[39].GetIntegerParameter(),
 		Notified:             ps[40].GetIntegerParameter(),
 		ReadReceiptCount:     ps[41].GetIntegerParameter(),
-		Unidentified:         ps[42].GetIntegerParameter(),
+		Unidentified:         unidentified,
 	}
 }
 
