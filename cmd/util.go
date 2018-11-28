@@ -1,15 +1,16 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"github.com/xeals/signal-back/types"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // AppHelp is the help template.
@@ -80,6 +81,7 @@ func setup(c *cli.Context) (*types.BackupFile, error) {
 
 func readPassword(c *cli.Context) (string, error) {
 	var pass string
+
 	if c.String("password") != "" {
 		pass = c.String("password")
 	} else if c.String("pwdfile") != "" {
@@ -89,13 +91,13 @@ func readPassword(c *cli.Context) (string, error) {
 		}
 		pass = string(bs)
 	} else {
-		r := bufio.NewReader(os.Stdin)
+		// Read from stdin
 		fmt.Fprint(os.Stderr, "Password: ")
-		t, err := r.ReadString('\n')
+		raw, err := terminal.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			return "", errors.Wrap(err, "unable to read from stdin")
 		}
-		pass = t
+		pass = string(raw)
 	}
 	return pass, nil
 }
