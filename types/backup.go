@@ -79,7 +79,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 
 	iv := frame.Header.Iv
 	if len(iv) != 16 {
-		return nil, errors.New("No IV in header")
+		return nil, errors.New("no IV in header")
 	}
 
 	key := backupKey(password, frame.Header.Salt)
@@ -109,16 +109,18 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	frameLength := bytesToUint32(length)
 	frame := make([]byte, frameLength)
 
-	io.ReadFull(bf.file, frame)
+	if _, err = io.ReadFull(bf.file, frame); err != nil {
+		return nil, errors.Wrap(err, "unable to write frame to file")
+	}
 
 	theirMac := frame[:len(frame)-10]
 
 	bf.Mac.Reset()
-	bf.Mac.Write(frame)
+	_, _ = bf.Mac.Write(frame)
 	ourMac := bf.Mac.Sum(nil)
 
 	if bytes.Equal(theirMac, ourMac) {
-		return nil, errors.New("Bad MAC")
+		return nil, errors.New("bad MAC")
 	}
 
 	uint32ToBytes(bf.IV, bf.Counter)
@@ -126,7 +128,7 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 
 	aesCipher, err := aes.NewCipher(bf.CipherKey)
 	if err != nil {
-		return nil, errors.New("Bad cipher")
+		return nil, errors.New("bad cipher")
 	}
 	stream := cipher.NewCTR(aesCipher, bf.IV)
 
@@ -134,7 +136,9 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	stream.XORKeyStream(output, frame[:len(frame)-10])
 
 	decoded := new(signal.BackupFrame)
-	proto.Unmarshal(output, decoded)
+	if err = proto.Unmarshal(output, decoded); err != nil {
+		return nil, errors.Wrap(err, "unable to decode BackupFrame")
+	}
 
 	return decoded, nil
 }
@@ -151,10 +155,10 @@ func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 
 	aesCipher, err := aes.NewCipher(bf.CipherKey)
 	if err != nil {
-		return errors.New("Bad cipher")
+		return errors.New("bad cipher")
 	}
 	stream := cipher.NewCTR(aesCipher, bf.IV)
-	bf.Mac.Write(bf.IV)
+	_, _ = bf.Mac.Write(bf.IV)
 
 	buf := make([]byte, ATTACHMENT_BUFFER_SIZE)
 	output := make([]byte, len(buf))
@@ -165,11 +169,11 @@ func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 		if length < ATTACHMENT_BUFFER_SIZE {
 			buf = make([]byte, length)
 		}
-		n, err := bf.file.Read(buf)
-		if err != nil {
-			return errors.Wrap(err, "failed to read att")
+		n, readErr := bf.file.Read(buf)
+		if readErr != nil {
+			return errors.Wrap(readErr, "failed to read attr")
 		}
-		bf.Mac.Write(buf)
+		_, _ = bf.Mac.Write(buf)
 
 		stream.XORKeyStream(output, buf)
 		if _, err = out.Write(output); err != nil {
@@ -180,11 +184,13 @@ func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 	}
 
 	theirMac := make([]byte, 10)
-	io.ReadFull(bf.file, theirMac)
+	if _, err = io.ReadFull(bf.file, theirMac); err != nil {
+		return errors.Wrap(err, "unable to write MAC to file")
+	}
 	ourMac := bf.Mac.Sum(nil)
 
 	if bytes.Equal(theirMac, ourMac) {
-		return errors.New("Bad MAC")
+		return errors.New("bad MAC")
 	}
 
 	return nil
@@ -312,12 +318,12 @@ func backupKey(password string, salt []byte) []byte {
 	hash := input
 
 	if salt != nil {
-		digest.Write(salt)
+		_, _ = digest.Write(salt)
 	}
 
 	for i := 0; i < 250000; i++ {
-		digest.Write(hash)
-		digest.Write(input)
+		_, _ = digest.Write(hash)
+		_, _ = digest.Write(input)
 		hash = digest.Sum(nil)
 		digest.Reset()
 	}

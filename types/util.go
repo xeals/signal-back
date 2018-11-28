@@ -36,7 +36,7 @@ func rescue(v ...interface{}) {
 	if r := recover(); r != nil {
 		log.Println("Panicked:", r)
 		if v != nil {
-			log.Println(v)
+			log.Println(v...)
 			os.Exit(2)
 		}
 	}

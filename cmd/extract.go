@@ -32,12 +32,11 @@ var Extract = cli.Command{
 		}
 
 		if path := c.String("outdir"); path != "" {
-			err := os.MkdirAll(path, 0755)
-			if err != nil {
+			if err = os.MkdirAll(path, 0755); err != nil {
 				return errors.Wrap(err, "unable to create output directory")
 			}
-			err = os.Chdir(path)
-			if err != nil {
+
+			if err = os.Chdir(path); err != nil {
 				return errors.Wrap(err, "unable to change working directory")
 			}
 		}
