@@ -109,9 +109,7 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	frameLength := bytesToUint32(length)
 	frame := make([]byte, frameLength)
 
-	if _, err = io.ReadFull(bf.file, frame); err != nil {
-		return nil, errors.Wrap(err, "unable to write frame to file")
-	}
+	_, _ = io.ReadFull(bf.file, frame)
 
 	theirMac := frame[:len(frame)-10]
 
@@ -171,7 +169,7 @@ func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 		}
 		n, readErr := bf.file.Read(buf)
 		if readErr != nil {
-			return errors.Wrap(readErr, "failed to read attr")
+			return errors.Wrap(readErr, "failed to read attachment")
 		}
 		_, _ = bf.Mac.Write(buf)
 
