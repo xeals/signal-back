@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -57,10 +58,14 @@ func ExtractAttachments(bf *types.BackupFile) error {
 			log.Println("Panicked during extraction:", r)
 		}
 	}()
+	defer bf.Close()
+
 	for {
 		f, err := bf.Frame()
-		if err != nil {
-			return nil // TODO This should be specific to an EOF-type error
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return errors.Wrap(err, "extraction")
 		}
 
 		ps := f.GetStatement().GetParameters()
@@ -82,7 +87,7 @@ func ExtractAttachments(bf *types.BackupFile) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to open output file")
 			}
-			if err = bf.DecryptAttachment(a, file); err != nil {
+			if err = bf.DecryptAttachment(a.GetLength(), file); err != nil {
 				return errors.Wrap(err, "failed to decrypt attachment")
 			}
 			if err = file.Close(); err != nil {

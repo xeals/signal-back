@@ -21,13 +21,24 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
+// ATTACHMENT_BUFFER_SIZE is the size of the buffer in bytes used for decrypting attachments. Larger
+// values of this will consume more memory, but may decrease the overall time taken to decrypt an
+// attachment.
+const ATTACHMENT_BUFFER_SIZE = 8192
+
 // ProtoCommitHash is the commit hash of the Signal Protobuf spec.
 var ProtoCommitHash = "d6610f0"
 
-// BackupFile holds the internal state of decryption of a Signal backup.
+// BackupFile stores information about a given backup file.
+//
+// Decrypting a backup is done by consuming the underlying file buffer. Attemtping to read from a
+// BackupFile after it is consumed will return an error.
+//
+// Closing the underlying file handle is the responsibilty of the programmer if implementing the
+// iteration manually, or is done as part of the Consume method.
 type BackupFile struct {
-	File      *bytes.Buffer
-	FileSize  int
+	file      *os.File
+	FileSize  int64
 	CipherKey []byte
 	MacKey    []byte
 	Mac       hash.Hash
@@ -38,23 +49,26 @@ type BackupFile struct {
 // NewBackupFile initialises a backup file for reading using the provided path
 // and password.
 func NewBackupFile(path, password string) (*BackupFile, error) {
-	fileBytes, err := ioutil.ReadFile(path)
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to open backup file")
+	}
+	size := info.Size()
+
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to open backup file")
 	}
 
-	fileBuf := bytes.NewBuffer(fileBytes)
-	size := fileBuf.Len()
-
 	headerLengthBytes := make([]byte, 4)
-	_, err = io.ReadFull(fileBuf, headerLengthBytes)
+	_, err = io.ReadFull(file, headerLengthBytes)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read headerLengthBytes")
 	}
 	headerLength := bytesToUint32(headerLengthBytes)
 
 	headerFrame := make([]byte, headerLength)
-	_, err = io.ReadFull(fileBuf, headerFrame)
+	_, err = io.ReadFull(file, headerFrame)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read headerFrame")
 	}
@@ -74,7 +88,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 	macKey := derived[32:]
 
 	return &BackupFile{
-		File:      fileBuf,
+		file:      file,
 		FileSize:  size,
 		CipherKey: cipherKey,
 		MacKey:    macKey,
@@ -86,17 +100,16 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 
 // Frame returns the next frame in the file.
 func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
-	if bf.File.Len() == 0 {
-		return nil, errors.New("Nothing left to decode")
+	length := make([]byte, 4)
+	_, err := io.ReadFull(bf.file, length)
+	if err != nil {
+		return nil, err
 	}
 
-	length := make([]byte, 4)
-	io.ReadFull(bf.File, length)
 	frameLength := bytesToUint32(length)
-	defer rescue(fmt.Sprintf("frame: starting at %v, size %v; %v remaining in file", bf.FileSize-bf.File.Len(), frameLength, bf.File.Len()))
-
 	frame := make([]byte, frameLength)
-	io.ReadFull(bf.File, frame)
+
+	io.ReadFull(bf.file, frame)
 
 	theirMac := frame[:len(frame)-10]
 
@@ -126,8 +139,13 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	return decoded, nil
 }
 
-// DecryptAttachment reads the attachment immediately next in the file's bytes.
-func (bf *BackupFile) DecryptAttachment(a *signal.Attachment, out io.Writer) error {
+// DecryptAttachment reads the attachment immediately next in the file's bytes, using a streaming
+// intermediate buffer of size ATTACHMENT_BUFFER_SIZE.
+func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
+	if length == 0 {
+		return errors.New("can't read attachment of length 0")
+	}
+
 	uint32ToBytes(bf.IV, bf.Counter)
 	bf.Counter++
 
@@ -138,28 +156,111 @@ func (bf *BackupFile) DecryptAttachment(a *signal.Attachment, out io.Writer) err
 	stream := cipher.NewCTR(aesCipher, bf.IV)
 	bf.Mac.Write(bf.IV)
 
-	buf := make([]byte, *a.Length)
-	n, err := io.ReadFull(bf.File, buf)
-	if err != nil {
-		return errors.Wrap(err, "failed to read att")
-	}
-	if n != len(buf) {
-		return errors.Errorf("didn't read enough bytes: %v, %v\n", n, len(buf))
-	}
-	bf.Mac.Write(buf)
+	buf := make([]byte, ATTACHMENT_BUFFER_SIZE)
+	output := make([]byte, len(buf))
 
-	output := make([]byte, *a.Length)
-	stream.XORKeyStream(output, buf)
-	if _, err = out.Write(output); err != nil {
-		return errors.Wrap(err, "can't write to output")
+	for length > 0 {
+		// Go can't read an arbitrary number of bytes,
+		// so we have to downsize the containing buffer instead.
+		if length < ATTACHMENT_BUFFER_SIZE {
+			buf = make([]byte, length)
+		}
+		n, err := bf.file.Read(buf)
+		if err != nil {
+			return errors.Wrap(err, "failed to read att")
+		}
+		bf.Mac.Write(buf)
+
+		stream.XORKeyStream(output, buf)
+		if _, err = out.Write(output); err != nil {
+			return errors.Wrap(err, "can't write to output")
+		}
+
+		length -= uint32(n)
 	}
 
 	theirMac := make([]byte, 10)
-	io.ReadFull(bf.File, theirMac)
+	io.ReadFull(bf.file, theirMac)
 	ourMac := bf.Mac.Sum(nil)
 
 	if bytes.Equal(theirMac, ourMac) {
 		return errors.New("Bad MAC")
+	}
+
+	return nil
+}
+
+// ConsumeFuncs stores parameters for a Consume operation.
+type ConsumeFuncs struct {
+	AttachmentFunc func(*signal.Attachment) error
+	AvatarFunc     func(*signal.Avatar) error
+	StatementFunc  func(*signal.SqlStatement) error
+}
+
+func DiscardConsumeFuncs(bf *BackupFile) ConsumeFuncs {
+	return ConsumeFuncs{
+		AttachmentFunc: func(a *signal.Attachment) error {
+			return bf.DecryptAttachment(a.GetLength(), ioutil.Discard)
+		},
+		AvatarFunc: func(a *signal.Avatar) error {
+			return bf.DecryptAttachment(a.GetLength(), ioutil.Discard)
+		},
+		StatementFunc: func(s *signal.SqlStatement) error {
+			return nil
+		},
+	}
+}
+
+// Consume iterates over the backup file using the fields in the provided ConsumeFuncs. When a
+// BackupFrame is encountered, the matching function will run.
+//
+// If any image-related functions are nil (e.g., AttachmentFunc) the default will be to discard the
+// next *n* bytes, where n is the Attachment.Length.
+//
+// The underlying file is closed at the end of the method, and the backup file should be considered
+// spent.
+func (bf *BackupFile) Consume(fns ConsumeFuncs) error {
+	var (
+		f       *signal.BackupFrame
+		err     error
+		discard = DiscardConsumeFuncs(bf)
+	)
+
+	defer bf.Close()
+
+	if fns.AttachmentFunc == nil {
+		fns.AttachmentFunc = discard.AttachmentFunc
+	}
+	if fns.AvatarFunc == nil {
+		fns.AvatarFunc = discard.AvatarFunc
+	}
+	if fns.StatementFunc == nil {
+		fns.StatementFunc = discard.StatementFunc
+	}
+
+	for {
+		f, err = bf.Frame()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		if a := f.GetAttachment(); a != nil {
+			if err = fns.AttachmentFunc(a); err != nil {
+				return errors.Wrap(err, "consume [attachment]")
+			}
+		}
+		if a := f.GetAvatar(); a != nil {
+			if err = fns.AvatarFunc(a); err != nil {
+				return errors.Wrap(err, "consume [avatar]")
+			}
+		}
+		if stmt := f.GetStatement(); stmt != nil {
+			if err = fns.StatementFunc(stmt); err != nil {
+				return errors.Wrap(err, "consume [statement]")
+			}
+		}
 	}
 
 	return nil
@@ -171,24 +272,38 @@ func (bf *BackupFile) DecryptAttachment(a *signal.Attachment, out io.Writer) err
 // any function on the backup file after calling Slurp will fail.
 //
 // Note that any attachments in the backup file will not be handled.
+//
+// Closes the underlying file handler afterwards. The backup file should be considered exhausted.
 func (bf *BackupFile) Slurp() ([]*signal.BackupFrame, error) {
 	frames := []*signal.BackupFrame{}
+	defer bf.Close()
+
 	for {
 		f, err := bf.Frame()
-		if err != nil {
-			return frames, nil // TODO error matching
+		if err == io.EOF {
+			return frames, nil
+		} else if err != nil {
+			return nil, err
 		}
 
 		frames = append(frames, f)
 
-		// Attachment needs removing
+		// Remove images
 		if a := f.GetAttachment(); a != nil {
-			err := bf.DecryptAttachment(a, ioutil.Discard)
-			if err != nil {
-				return nil, errors.Wrap(err, "unable to chew through attachment")
+			if err = bf.DecryptAttachment(a.GetLength(), ioutil.Discard); err != nil {
+				return nil, errors.Wrap(err, "failed to remove attachment")
+			}
+		}
+		if a := f.GetAvatar(); a != nil {
+			if err = bf.DecryptAttachment(a.GetLength(), ioutil.Discard); err != nil {
+				return nil, errors.Wrap(err, "failed to remove avatar")
 			}
 		}
 	}
+}
+
+func (bf *BackupFile) Close() error {
+	return bf.file.Close()
 }
 
 func backupKey(password string, salt []byte) []byte {

@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -92,25 +91,18 @@ func JSON(bf *types.BackupFile, out io.Writer) error {
 // CSV dumps the raw backup data into a comma-separated value format.
 func CSV(bf *types.BackupFile, message string, out io.Writer) error {
 	ss := make([][]string, 0)
-	for {
-		f, err := bf.Frame()
-		if err != nil {
-			break
-		}
 
-		// Attachment needs removing
-		if a := f.GetAttachment(); a != nil {
-			err := bf.DecryptAttachment(a, ioutil.Discard)
-			if err != nil {
-				return errors.Wrap(err, "unable to chew through attachment")
+	fns := types.ConsumeFuncs{
+		StatementFunc: func(s *signal.SqlStatement) error {
+			if (*s.Statement)[:15] == "INSERT INTO "+message {
+				ss = append(ss, types.StatementToStringArray(s))
 			}
-		}
+			return nil
+		},
+	}
 
-		if stmt := f.GetStatement(); stmt != nil {
-			if (*stmt.Statement)[:15] == "INSERT INTO "+message {
-				ss = append(ss, types.StatementToStringArray(stmt))
-			}
-		}
+	if err := bf.Consume(fns); err != nil {
+		return err
 	}
 
 	w := csv.NewWriter(out)
@@ -152,15 +144,10 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	mmses := map[uint64]types.MMS{}
 	mmsParts := map[uint64][]types.MMSPart{}
 
-	for {
-		f, err := bf.Frame()
-		if err != nil {
-			break
-		}
-
-		// Attachment needs removing
-		if a := f.GetAttachment(); a != nil {
-			err := bf.DecryptAttachment(a, attachmentEncoder)
+	fns := types.ConsumeFuncs{
+		// Remove attachment, but keep metadata.
+		AttachmentFunc: func(a *signal.Attachment) error {
+			err := bf.DecryptAttachment(a.GetLength(), attachmentEncoder)
 			attachmentEncoder.Close()
 			if err != nil {
 				return errors.Wrap(err, "unable to process attachment")
@@ -170,31 +157,40 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 				Body: attachmentBuffer.String(),
 			}
 			attachmentBuffer.Reset()
-		}
-
-		if stmt := f.GetStatement(); stmt != nil {
+			return nil
+		},
+		StatementFunc: func(s *signal.SqlStatement) error {
 			// Only use SMS/MMS statements
-			if strings.HasPrefix(*stmt.Statement, "INSERT INTO sms") {
-				sms, err := types.NewSMSFromStatement(stmt)
-				if err == nil {
-					smses.SMS = append(smses.SMS, *sms)
+			if strings.HasPrefix(*s.Statement, "INSERT INTO sms") {
+				sms, err := types.NewSMSFromStatement(s)
+				if err != nil {
+					return errors.Wrap(err, "sms statement couldn't be generated")
 				}
+				smses.SMS = append(smses.SMS, *sms)
 			}
 
-			if strings.HasPrefix(*stmt.Statement, "INSERT INTO mms") {
-				id, mms, err := types.NewMMSFromStatement(stmt)
-				if err == nil {
-					mmses[id] = *mms
+			if strings.HasPrefix(*s.Statement, "INSERT INTO mms") {
+				id, mms, err := types.NewMMSFromStatement(s)
+				if err != nil {
+					return errors.Wrap(err, "mms statement couldn't be generated")
 				}
+				mmses[id] = *mms
 			}
 
-			if strings.HasPrefix(*stmt.Statement, "INSERT INTO part") {
-				mmsId, part, err := types.NewPartFromStatement(stmt)
-				if err == nil {
-					mmsParts[mmsId] = append(mmsParts[mmsId], *part)
+			if strings.HasPrefix(*s.Statement, "INSERT INTO part") {
+				mmsId, part, err := types.NewPartFromStatement(s)
+				if err != nil {
+					return errors.Wrap(err, "mms parts couldn't be generated")
 				}
+				mmsParts[mmsId] = append(mmsParts[mmsId], *part)
 			}
-		}
+
+			return nil
+		},
+	}
+
+	if err := bf.Consume(fns); err != nil {
+		return err
 	}
 
 	for id, mms := range mmses {
@@ -260,29 +256,12 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 // Raw performs an ever plainer dump than CSV, and is largely unusable for any purpose outside
 // debugging.
 func Raw(bf *types.BackupFile, out io.Writer) error {
-	var (
-		err error
-		f   *signal.BackupFrame
-	)
-
-	for {
-		f, err = bf.Frame()
-		if err != nil {
-			break
-		}
-
-		// Attachment needs removing
-		if a := f.GetAttachment(); a != nil {
-			err := bf.DecryptAttachment(a, ioutil.Discard)
-			if err != nil {
-				return errors.Wrap(err, "unable to chew through attachment")
-			}
-		}
-
-		if stmt := f.GetStatement(); stmt != nil {
-			out.Write([]byte(stmt.String()))
-			out.Write([]byte{'\n'})
-		}
+	fns := types.ConsumeFuncs{
+		StatementFunc: func(s *signal.SqlStatement) error {
+			_, err := out.Write(append([]byte(s.String()), '\n'))
+			return err
+		},
 	}
-	return nil
+
+	return errors.WithMessage(bf.Consume(fns), "failed to write raw")
 }
