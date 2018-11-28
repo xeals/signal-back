@@ -45,6 +45,7 @@ var (
 		"EXPIRE_STARTED",
 		"NOTIFIED",
 		"READ_RECEIPT_COUNT",
+		"UNIDENTIFIED",
 	}
 
 	MMSCSVHeaders = []string{
@@ -90,6 +91,7 @@ var (
 		"EXPIRE_STARTED",
 		"NOTIFIED",
 		"READ_RECEIPT_COUNT",
+		"UNIDENTIFIED",
 	}
 )
 
@@ -116,6 +118,7 @@ type SQLSMS struct {
 	ExpireStarted        uint64 // default 0
 	Notified             uint64 // default 0
 	ReadReceiptCount     uint64 // default 0
+	Unidentified         uint64 // default 0
 }
 
 // StatementToSMS converts a of SQL statement to a single SMS.
@@ -125,10 +128,11 @@ func StatementToSMS(sql *signal.SqlStatement) *SQLSMS {
 
 // ParametersToSMS converts a set of SQL parameters to a single SMS.
 func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
-	if len(ps) != 22 {
+	if len(ps) < 22 {
 		return nil
 	}
-	return &SQLSMS{
+
+	result := &SQLSMS{
 		ID:                   ps[0].GetIntegerParameter(),
 		ThreadID:             ps[1].IntegerParameter,
 		Address:              ps[2].StringParamter,
@@ -152,6 +156,11 @@ func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
 		Notified:             ps[20].GetIntegerParameter(),
 		ReadReceiptCount:     ps[21].GetIntegerParameter(),
 	}
+	if len(ps) == 23 {
+		result.Unidentified = ps[22].GetIntegerParameter()
+	}
+
+	return result
 }
 
 type SQLMMS struct {
@@ -197,6 +206,7 @@ type SQLMMS struct {
 	ExpireStarted        uint64 // default 0
 	Notified             uint64 // default 0
 	ReadReceiptCount     uint64 // default 0
+	Unidentified         uint64 // default 0
 }
 
 // StatementToMMS converts a of SQL statement to a single MMS.
@@ -209,7 +219,8 @@ func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
 	if len(ps) < 42 {
 		return nil
 	}
-	return &SQLMMS{
+
+	result := &SQLMMS{
 		ID:                   ps[0].GetIntegerParameter(),
 		ThreadID:             ps[1].IntegerParameter,
 		DateSent:             ps[2].IntegerParameter,
@@ -253,6 +264,11 @@ func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
 		Notified:             ps[40].GetIntegerParameter(),
 		ReadReceiptCount:     ps[41].GetIntegerParameter(),
 	}
+	if len(ps) == 43 {
+		result.Unidentified = ps[42].GetIntegerParameter()
+	}
+
+	return result
 }
 
 type SQLPart struct {
