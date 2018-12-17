@@ -32,8 +32,8 @@ jobs:
             - release/signal-back_linux_amd64.sha256
             - release/signal-back_windows_386.exe
             - release/signal-back_windows_386.exe.sha256
-            - release/signal-back_windows_amd64
-            - release/signal-back_windows_amd64.sha256
+            - release/signal-back_windows_amd64.exe
+            - release/signal-back_windows_amd64.exe.sha256
           skip_cleanup: true
           on:
             repo: xeals/signal-back
