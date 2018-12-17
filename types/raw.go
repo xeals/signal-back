@@ -195,7 +195,7 @@ func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
 		ExpireStarted:        ps[19].GetIntegerParameter(),
 		Notified:             ps[20].GetIntegerParameter(),
 		ReadReceiptCount:     ps[21].GetIntegerParameter(),
-		Unidentified:         ps[22].GetIntegerParameter(),
+		//Unidentified:         ps[22].GetIntegerParameter(),
 	}
 
 	return result
@@ -310,13 +310,13 @@ func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
 		ExpireStarted:        ps[39].GetIntegerParameter(),
 		Notified:             ps[40].GetIntegerParameter(),
 		ReadReceiptCount:     ps[41].GetIntegerParameter(),
-		QuoteID:              ps[42].GetIntegerParameter(),
-		QuoteAuthor:          ps[43].StringParamter,
-		QuoteBody:            ps[44].StringParamter,
-		QuoteAttachment:      ps[45].GetIntegerParameter(),
-		QuoteMissing:         ps[46].GetIntegerParameter(),
-		SharedContacts:       ps[47].StringParamter,
-		Unidentified:         ps[48].GetIntegerParameter(),
+		//QuoteID:              ps[42].GetIntegerParameter(),
+		//QuoteAuthor:          ps[43].StringParamter,
+		//QuoteBody:            ps[44].StringParamter,
+		//QuoteAttachment:      ps[45].GetIntegerParameter(),
+		//QuoteMissing:         ps[46].GetIntegerParameter(),
+		//SharedContacts:       ps[47].StringParamter,
+		//Unidentified:         ps[48].GetIntegerParameter(),
 	}
 
 	return result
@@ -396,6 +396,6 @@ func ParametersToPart(ps []*signal.SqlStatement_SqlParameter) *SQLPart {
 		Quote:                ps[25].GetIntegerParameter(),
 		Width:                ps[26].GetIntegerParameter(),
 		Height:               ps[27].GetIntegerParameter(),
-		Caption:              ps[28].StringParamter,
+		//Caption:              ps[28].StringParamter,
 	}
 }
