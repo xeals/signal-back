@@ -45,6 +45,7 @@ var (
 		"EXPIRE_STARTED",
 		"NOTIFIED",
 		"READ_RECEIPT_COUNT",
+		"UNIDENTIFIED",
 	}
 
 	MMSCSVHeaders = []string{
@@ -90,9 +91,50 @@ var (
 		"EXPIRE_STARTED",
 		"NOTIFIED",
 		"READ_RECEIPT_COUNT",
+		"QUOTE_ID",
+		"QUOTE_AUTHOR",
+		"QUOTE_ATTACHMENT",
+		"QUOTE_MISSING",
+		"SHARED_CONTACTS",
+		"UNIDENTIFIED",
+	}
+
+	SMSPartCSVHeaders = []string{
+		"ROW_ID",
+		"MMS_ID",
+		"seq",
+		"CONTENT_TYPE",
+		"NAME",
+		"chset",
+		"CONTENT_DISPOSITION",
+		"fn",
+		"cid",
+		"CONTENT_LOCATION",
+		"ctt_s",
+		"ctt_t",
+		"encrypted",
+		"TRANSFER_STATE",
+		"DATA",
+		"SIZE",
+		"FILE_NAME",
+		"THUMBNAIL",
+		"THUMBNAIL_ASPECT_RATIO",
+		"UNIQUE_ID",
+		"DIGEST",
+		"FAST_PREFLIGHT_ID",
+		"VOICE_NOTE",
+		"DATA_RANDOM",
+		"THUMBNAIL_RANDOM",
+		"QUOTE",
+		"WIDTH",
+		"HEIGHT",
+		"CAPTION",
 	}
 )
 
+// SQLSMS info
+//
+// https://github.com/signalapp/Signal-Android/blob/master/src/org/thoughtcrime/securesms/database/SmsDatabase.java#L77
 type SQLSMS struct {
 	ID                   uint64
 	ThreadID             *uint64
@@ -116,6 +158,7 @@ type SQLSMS struct {
 	ExpireStarted        uint64 // default 0
 	Notified             uint64 // default 0
 	ReadReceiptCount     uint64 // default 0
+	Unidentified         uint64 // default 0
 }
 
 // StatementToSMS converts a of SQL statement to a single SMS.
@@ -125,10 +168,11 @@ func StatementToSMS(sql *signal.SqlStatement) *SQLSMS {
 
 // ParametersToSMS converts a set of SQL parameters to a single SMS.
 func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
-	if len(ps) != 22 {
+	if len(ps) < 22 {
 		return nil
 	}
-	return &SQLSMS{
+
+	result := &SQLSMS{
 		ID:                   ps[0].GetIntegerParameter(),
 		ThreadID:             ps[1].IntegerParameter,
 		Address:              ps[2].StringParamter,
@@ -151,9 +195,15 @@ func ParametersToSMS(ps []*signal.SqlStatement_SqlParameter) *SQLSMS {
 		ExpireStarted:        ps[19].GetIntegerParameter(),
 		Notified:             ps[20].GetIntegerParameter(),
 		ReadReceiptCount:     ps[21].GetIntegerParameter(),
+		//Unidentified:         ps[22].GetIntegerParameter(),
 	}
+
+	return result
 }
 
+// SQLMMS info
+//
+// https://github.com/signalapp/Signal-Android/blob/master/src/org/thoughtcrime/securesms/database/MmsDatabase.java#L110
 type SQLMMS struct {
 	ID                   uint64
 	ThreadID             *uint64
@@ -197,6 +247,13 @@ type SQLMMS struct {
 	ExpireStarted        uint64 // default 0
 	Notified             uint64 // default 0
 	ReadReceiptCount     uint64 // default 0
+	QuoteID              uint64 // default 0
+	QuoteAuthor          *string
+	QuoteBody            *string
+	QuoteAttachment      uint64 // default -1
+	QuoteMissing         uint64 // default 0
+	SharedContacts       *string
+	Unidentified         uint64 // default 0
 }
 
 // StatementToMMS converts a of SQL statement to a single MMS.
@@ -209,7 +266,8 @@ func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
 	if len(ps) < 42 {
 		return nil
 	}
-	return &SQLMMS{
+
+	result := &SQLMMS{
 		ID:                   ps[0].GetIntegerParameter(),
 		ThreadID:             ps[1].IntegerParameter,
 		DateSent:             ps[2].IntegerParameter,
@@ -252,9 +310,21 @@ func ParametersToMMS(ps []*signal.SqlStatement_SqlParameter) *SQLMMS {
 		ExpireStarted:        ps[39].GetIntegerParameter(),
 		Notified:             ps[40].GetIntegerParameter(),
 		ReadReceiptCount:     ps[41].GetIntegerParameter(),
+		//QuoteID:              ps[42].GetIntegerParameter(),
+		//QuoteAuthor:          ps[43].StringParamter,
+		//QuoteBody:            ps[44].StringParamter,
+		//QuoteAttachment:      ps[45].GetIntegerParameter(),
+		//QuoteMissing:         ps[46].GetIntegerParameter(),
+		//SharedContacts:       ps[47].StringParamter,
+		//Unidentified:         ps[48].GetIntegerParameter(),
 	}
+
+	return result
 }
 
+// SQLPart info
+//
+// https://github.com/signalapp/Signal-Android/blob/master/src/org/thoughtcrime/securesms/database/AttachmentDatabase.java#L120
 type SQLPart struct {
 	RowID                uint64 // primary
 	MmsID                *uint64
@@ -281,9 +351,10 @@ type SQLPart struct {
 	VoiceNote            uint64 // default 0
 	DataRandom           []byte
 	ThumbnailRandom      []byte
-	Quote                uint64 // default 0
-	Width                uint64 // default 0
-	Height               uint64 // default 0
+	Quote                uint64  // default 0
+	Width                uint64  // default 0
+	Height               uint64  // default 0
+	Caption              *string //default null
 }
 
 // StatementToPart converts a of SQL statement to a single part.
@@ -325,5 +396,6 @@ func ParametersToPart(ps []*signal.SqlStatement_SqlParameter) *SQLPart {
 		Quote:                ps[25].GetIntegerParameter(),
 		Width:                ps[26].GetIntegerParameter(),
 		Height:               ps[27].GetIntegerParameter(),
+		//Caption:              ps[28].StringParamter,
 	}
 }

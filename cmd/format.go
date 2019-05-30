@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -160,6 +161,16 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 			return nil
 		},
 		StatementFunc: func(s *signal.SqlStatement) error {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Println("Unexpected error:", r)
+					log.Printf("TEMP: statement is %+v\n", s)
+					log.Printf("TEMP: statement is %#v\n", s)
+					debug.PrintStack()
+					os.Exit(1)
+				}
+			}()
+
 			// Only use SMS/MMS statements
 			if strings.HasPrefix(*s.Statement, "INSERT INTO sms") {
 				sms, err := types.NewSMSFromStatement(s)

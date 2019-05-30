@@ -23,16 +23,14 @@ Commands:
   format   Read and format the backup file
   analyse  Information about the backup file
   extract  Retrieve attachments from the backup
+  check    Verify that a backup is readable
   help     Shows a list of commands or help for one command
 ```
 
-The current interface is by no means complete or stable and may change in the future.
-
 Current export formats are:
-- XML: (hopefully) Compatible with [SMS Backup & Restore](https://play.google.com/store/apps/details?id=com.riteshsahu.SMSBackupRestore); however, there may be issues.
+- XML: Targeted to be compatible with [SMS Backup & Restore](https://play.google.com/store/apps/details?id=com.riteshsahu.SMSBackupRestore)
 - CSV
-
-CSV supports MMS export, and XML is planned.
+- Go structure representation ("raw")
 
 # Password
 
@@ -51,17 +49,17 @@ Find where you downloaded the file and open an interactive shell (Command Prompt
 If you're on Windows:
 
 ```sh
-signal-back_windows_amd64.exe format -f XML signal-XXX.backup > backup.xml
+signal-back_windows_amd64.exe format -f XML -o backup.xml signal-XXX.backup
 ```
 
 If you're on MacOS or Linux (where e.g., `OS` is `darwin` and `ARCH` is `amd64`):
 
 ```sh
 chmod +x signal-back_OS_ARCH
-./signal-back_OS_ARCH format -f XML signal-XXX.backup > backup.xml
+./signal-back_OS_ARCH format -f XML -o backup.xml signal-XXX.backup
 ```
 
-Enter your 30-digit password at the prompt (with or without spaces, doesn't matter).
+Enter your 30-digit password at the prompt (with or without spaces, doesn't matter). Note that your password will not be echoed back to you for security purposes.
 
 You can then copy `backup.xml` to your phone and restore it using SMS Backup & Restore.
 
