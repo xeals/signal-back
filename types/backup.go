@@ -6,8 +6,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	_ "crypto/sha256"
-	_ "crypto/sha512"
+	_ "crypto/sha256" // Fixes "hash not available" message
+	_ "crypto/sha512" // Fixes "hash not available" message
 	"fmt"
 	"hash"
 	"io"
@@ -15,16 +15,18 @@ import (
 	"os"
 	"strings"
 
+	"path/filepath"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/xeals/signal-back/signal"
 	"golang.org/x/crypto/hkdf"
 )
 
-// ATTACHMENT_BUFFER_SIZE is the size of the buffer in bytes used for decrypting attachments. Larger
+// AttachmentBufferSize is the size of the buffer in bytes used for decrypting attachments. Larger
 // values of this will consume more memory, but may decrease the overall time taken to decrypt an
 // attachment.
-const ATTACHMENT_BUFFER_SIZE = 8192
+const AttachmentBufferSize = 8192
 
 // ProtoCommitHash is the commit hash of the Signal Protobuf spec.
 var ProtoCommitHash = "d6610f0"
@@ -55,7 +57,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 	}
 	size := info.Size()
 
-	file, err := os.Open(path)
+	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to open backup file")
 	}
@@ -142,7 +144,7 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 }
 
 // DecryptAttachment reads the attachment immediately next in the file's bytes, using a streaming
-// intermediate buffer of size ATTACHMENT_BUFFER_SIZE.
+// intermediate buffer of size AttachmentBufferSize.
 func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 	if length == 0 {
 		return errors.New("can't read attachment of length 0")
@@ -158,18 +160,18 @@ func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 	stream := cipher.NewCTR(aesCipher, bf.IV)
 	_, _ = bf.Mac.Write(bf.IV)
 
-	buf := make([]byte, ATTACHMENT_BUFFER_SIZE)
+	buf := make([]byte, AttachmentBufferSize)
 	output := make([]byte, len(buf))
 
 	for length > 0 {
 		// Go can't read an arbitrary number of bytes,
 		// so we have to downsize the containing buffer instead.
-		if length < ATTACHMENT_BUFFER_SIZE {
+		if length < AttachmentBufferSize {
 			buf = make([]byte, length)
 		}
-		n, readErr := bf.file.Read(buf)
-		if readErr != nil {
-			return errors.Wrap(readErr, "failed to read attachment")
+		var n int
+		if n, err = bf.file.Read(buf); err != nil {
+			return errors.Wrap(err, "failed to read attachment")
 		}
 		_, _ = bf.Mac.Write(buf)
 
@@ -201,6 +203,7 @@ type ConsumeFuncs struct {
 	StatementFunc  func(*signal.SqlStatement) error
 }
 
+// DiscardConsumeFuncs returns prepared ConsumeFuncs
 func DiscardConsumeFuncs(bf *BackupFile) ConsumeFuncs {
 	return ConsumeFuncs{
 		AttachmentFunc: func(a *signal.Attachment) error {
@@ -306,6 +309,7 @@ func (bf *BackupFile) Slurp() ([]*signal.BackupFrame, error) {
 	}
 }
 
+// Close closes the file
 func (bf *BackupFile) Close() error {
 	return bf.file.Close()
 }
@@ -356,5 +360,4 @@ func uint32ToBytes(b []byte, val uint32) {
 	b[2] = byte(val >> 8)
 	b[1] = byte(val >> 16)
 	b[0] = byte(val >> 24)
-	return
 }
