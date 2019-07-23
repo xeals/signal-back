@@ -13,9 +13,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
-
 	"path/filepath"
+	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
