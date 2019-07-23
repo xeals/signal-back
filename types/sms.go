@@ -178,6 +178,7 @@ func NewSMSFromStatement(stmt *signal.SqlStatement) (*SMS, error) {
 	return &xml, nil
 }
 
+// NewMMSFromStatement creates new MMS from SqlStatement
 func NewMMSFromStatement(stmt *signal.SqlStatement) (uint64, *MMS, error) {
 	mms := StatementToMMS(stmt)
 	if mms == nil {
@@ -288,19 +289,17 @@ func NewMMSFromStatement(stmt *signal.SqlStatement) (uint64, *MMS, error) {
 	return mms.ID, &xml, nil
 }
 
+// SetMMSMessageType sets messageType for MMS
 func SetMMSMessageType(messageType uint64, mms *MMS) error {
 	switch messageType {
 	case MMSSendReq:
 		mms.MsgBox = 2
 		mms.V = 18
-		break
 	case MMSNotificationInd:
 		// We can safely ignore this case.
-		break
 	case MMSRetrieveConf:
 		mms.MsgBox = 1
 		mms.V = 16
-		break
 	default:
 		return errors.Errorf("unsupported message type %v encountered", messageType)
 	}
@@ -309,6 +308,7 @@ func SetMMSMessageType(messageType uint64, mms *MMS) error {
 	return nil
 }
 
+// NewPartFromStatement creates new MMSPart from SqlStatement
 func NewPartFromStatement(stmt *signal.SqlStatement) (uint64, *MMSPart, error) {
 	part := StatementToPart(stmt)
 	if part == nil {

@@ -6,13 +6,14 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	_ "crypto/sha256"
-	_ "crypto/sha512"
+	_ "crypto/sha256" // Fixes "hash not available" message
+	_ "crypto/sha512" // Fixes "hash not available" message
 	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -21,10 +22,10 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-// ATTACHMENT_BUFFER_SIZE is the size of the buffer in bytes used for decrypting attachments. Larger
+// AttachmentBufferSize is the size of the buffer in bytes used for decrypting attachments. Larger
 // values of this will consume more memory, but may decrease the overall time taken to decrypt an
 // attachment.
-const ATTACHMENT_BUFFER_SIZE = 8192
+const AttachmentBufferSize = 8192
 
 // ProtoCommitHash is the commit hash of the Signal Protobuf spec.
 var ProtoCommitHash = "d6610f0"
@@ -55,7 +56,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 	}
 	size := info.Size()
 
-	file, err := os.Open(path)
+	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to open backup file")
 	}
@@ -79,7 +80,7 @@ func NewBackupFile(path, password string) (*BackupFile, error) {
 
 	iv := frame.Header.Iv
 	if len(iv) != 16 {
-		return nil, errors.New("No IV in header")
+		return nil, errors.New("no IV in header")
 	}
 
 	key := backupKey(password, frame.Header.Salt)
@@ -109,16 +110,16 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	frameLength := bytesToUint32(length)
 	frame := make([]byte, frameLength)
 
-	io.ReadFull(bf.file, frame)
+	_, _ = io.ReadFull(bf.file, frame)
 
 	theirMac := frame[:len(frame)-10]
 
 	bf.Mac.Reset()
-	bf.Mac.Write(frame)
+	_, _ = bf.Mac.Write(frame)
 	ourMac := bf.Mac.Sum(nil)
 
 	if bytes.Equal(theirMac, ourMac) {
-		return nil, errors.New("Bad MAC")
+		return nil, errors.New("bad MAC")
 	}
 
 	uint32ToBytes(bf.IV, bf.Counter)
@@ -126,7 +127,7 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 
 	aesCipher, err := aes.NewCipher(bf.CipherKey)
 	if err != nil {
-		return nil, errors.New("Bad cipher")
+		return nil, errors.New("bad cipher")
 	}
 	stream := cipher.NewCTR(aesCipher, bf.IV)
 
@@ -134,13 +135,15 @@ func (bf *BackupFile) Frame() (*signal.BackupFrame, error) {
 	stream.XORKeyStream(output, frame[:len(frame)-10])
 
 	decoded := new(signal.BackupFrame)
-	proto.Unmarshal(output, decoded)
+	if err = proto.Unmarshal(output, decoded); err != nil {
+		return nil, errors.Wrap(err, "unable to decode BackupFrame")
+	}
 
 	return decoded, nil
 }
 
 // DecryptAttachment reads the attachment immediately next in the file's bytes, using a streaming
-// intermediate buffer of size ATTACHMENT_BUFFER_SIZE.
+// intermediate buffer of size AttachmentBufferSize.
 func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 	if length == 0 {
 		return errors.New("can't read attachment of length 0")
@@ -151,25 +154,25 @@ func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 
 	aesCipher, err := aes.NewCipher(bf.CipherKey)
 	if err != nil {
-		return errors.New("Bad cipher")
+		return errors.New("bad cipher")
 	}
 	stream := cipher.NewCTR(aesCipher, bf.IV)
-	bf.Mac.Write(bf.IV)
+	_, _ = bf.Mac.Write(bf.IV)
 
-	buf := make([]byte, ATTACHMENT_BUFFER_SIZE)
+	buf := make([]byte, AttachmentBufferSize)
 	output := make([]byte, len(buf))
 
 	for length > 0 {
 		// Go can't read an arbitrary number of bytes,
 		// so we have to downsize the containing buffer instead.
-		if length < ATTACHMENT_BUFFER_SIZE {
+		if length < AttachmentBufferSize {
 			buf = make([]byte, length)
 		}
-		n, err := bf.file.Read(buf)
-		if err != nil {
-			return errors.Wrap(err, "failed to read att")
+		var n int
+		if n, err = bf.file.Read(buf); err != nil {
+			return errors.Wrap(err, "failed to read attachment")
 		}
-		bf.Mac.Write(buf)
+		_, _ = bf.Mac.Write(buf)
 
 		stream.XORKeyStream(output, buf)
 		if _, err = out.Write(output); err != nil {
@@ -180,11 +183,13 @@ func (bf *BackupFile) DecryptAttachment(length uint32, out io.Writer) error {
 	}
 
 	theirMac := make([]byte, 10)
-	io.ReadFull(bf.file, theirMac)
+	if _, err = io.ReadFull(bf.file, theirMac); err != nil {
+		return errors.Wrap(err, "unable to write MAC to file")
+	}
 	ourMac := bf.Mac.Sum(nil)
 
 	if bytes.Equal(theirMac, ourMac) {
-		return errors.New("Bad MAC")
+		return errors.New("bad MAC")
 	}
 
 	return nil
@@ -197,6 +202,7 @@ type ConsumeFuncs struct {
 	StatementFunc  func(*signal.SqlStatement) error
 }
 
+// DiscardConsumeFuncs returns prepared ConsumeFuncs
 func DiscardConsumeFuncs(bf *BackupFile) ConsumeFuncs {
 	return ConsumeFuncs{
 		AttachmentFunc: func(a *signal.Attachment) error {
@@ -302,6 +308,7 @@ func (bf *BackupFile) Slurp() ([]*signal.BackupFrame, error) {
 	}
 }
 
+// Close closes the file
 func (bf *BackupFile) Close() error {
 	return bf.file.Close()
 }
@@ -312,12 +319,12 @@ func backupKey(password string, salt []byte) []byte {
 	hash := input
 
 	if salt != nil {
-		digest.Write(salt)
+		_, _ = digest.Write(salt)
 	}
 
 	for i := 0; i < 250000; i++ {
-		digest.Write(hash)
-		digest.Write(input)
+		_, _ = digest.Write(hash)
+		_, _ = digest.Write(input)
 		hash = digest.Sum(nil)
 		digest.Reset()
 	}
@@ -352,5 +359,4 @@ func uint32ToBytes(b []byte, val uint32) {
 	b[2] = byte(val >> 8)
 	b[1] = byte(val >> 16)
 	b[0] = byte(val >> 24)
-	return
 }

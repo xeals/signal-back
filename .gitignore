@@ -1,4 +1,6 @@
 signal*backup*
 vendor/
-signal-back
+signal-back*
+debug*
 release/
+.vscode/

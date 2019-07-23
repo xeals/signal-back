@@ -189,11 +189,11 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 			}
 
 			if strings.HasPrefix(*s.Statement, "INSERT INTO part") {
-				mmsId, part, err := types.NewPartFromStatement(s)
+				mmsID, part, err := types.NewPartFromStatement(s)
 				if err != nil {
 					return errors.Wrap(err, "mms parts couldn't be generated")
 				}
-				mmsParts[mmsId] = append(mmsParts[mmsId], *part)
+				mmsParts[mmsID] = append(mmsParts[mmsID], *part)
 			}
 
 			return nil

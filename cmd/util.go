@@ -23,8 +23,8 @@ Commands:
 {{end}}{{end}}
 `
 
-// TODO: Work out how to display global flags here
 // SubcommandHelp is the subcommand help template.
+// TODO: Work out how to display global flags here
 const SubcommandHelp = `Usage: {{.HelpName}} [OPTION...] BACKUPFILE
 
 {{if .UsageText}}{{.UsageText}}
