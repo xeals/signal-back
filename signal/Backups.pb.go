@@ -59,7 +59,7 @@ func (m *SqlStatement) GetParameters() []*SqlStatement_SqlParameter {
 }
 
 type SqlStatement_SqlParameter struct {
-	StringParamter   *string  `protobuf:"bytes,1,opt,name=stringParamter" json:"stringParamter,omitempty"`
+	StringParameter   *string  `protobuf:"bytes,1,opt,name=stringParameter" json:"stringParameter,omitempty"`
 	IntegerParameter *uint64  `protobuf:"varint,2,opt,name=integerParameter" json:"integerParameter,omitempty"`
 	DoubleParameter  *float64 `protobuf:"fixed64,3,opt,name=doubleParameter" json:"doubleParameter,omitempty"`
 	BlobParameter    []byte   `protobuf:"bytes,4,opt,name=blobParameter" json:"blobParameter,omitempty"`
@@ -72,9 +72,9 @@ func (m *SqlStatement_SqlParameter) String() string            { return proto.Co
 func (*SqlStatement_SqlParameter) ProtoMessage()               {}
 func (*SqlStatement_SqlParameter) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0, 0} }
 
-func (m *SqlStatement_SqlParameter) GetStringParamter() string {
-	if m != nil && m.StringParamter != nil {
-		return *m.StringParamter
+func (m *SqlStatement_SqlParameter) GetStringParameter() string {
+	if m != nil && m.StringParameter != nil {
+		return *m.StringParameter
 	}
 	return ""
 }
