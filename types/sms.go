@@ -55,6 +55,12 @@ const (
 	MMSMBoxDescr                             // 147
 )
 
+// Recipient represents a recipient record.
+type Recipient struct {
+	XMLName xml.Name `xml:"recipient"`
+	Phone   string   `xml:"phone,attr"` // required
+}
+
 // SMSes holds a set of MMS or SMS records.
 type SMSes struct {
 	XMLName xml.Name `xml:"smses"`
@@ -67,6 +73,7 @@ type SMSes struct {
 type SMS struct {
 	XMLName       xml.Name `xml:"sms"`
 	Protocol      *uint64  `xml:"protocol,attr"`       // optional
+	RecipientID   string   `xml:"recipient_id,attr"`   // optional
 	Address       string   `xml:"address,attr"`        // required
 	Date          string   `xml:"date,attr"`           // required
 	Type          SMSType  `xml:"type,attr"`           // required
@@ -99,6 +106,7 @@ type MMS struct {
 	TrID         string    `xml:"tr_id,attr"`         // required
 	St           string    `xml:"st,attr"`            // required
 	MsgBox       uint64    `xml:"msg_box,attr"`       // required
+	RecipientID  string    `xml:"recipient_id,attr"`  // required
 	Address      string    `xml:"address,attr"`       // required
 	MCls         string    `xml:"m_cls,attr"`         // required
 	DTm          string    `xml:"d_tm,attr"`          // required
@@ -142,6 +150,20 @@ type MMSPart struct {
 	Data     *string  `xml:"data,attr"`  // optional
 }
 
+// NewRecipientFromStatement constructs an XML recipient struct from a SQL statement.
+func NewRecipientFromStatement(stmt *signal.SqlStatement) (uint64, *Recipient, error) {
+	recipient := StatementToRecipient(stmt)
+	if recipient == nil {
+		return 0, nil, errors.Errorf("expected 28 columns for recipient, have %v", len(stmt.GetParameters()))
+	}
+
+	xml := Recipient{
+		Phone: recipient.Phone,
+	}
+
+	return recipient.ID, &xml, nil
+}
+
 // NewSMSFromStatement constructs an XML SMS struct from a SQL statement.
 func NewSMSFromStatement(stmt *signal.SqlStatement) (*SMS, error) {
 	sms := StatementToSMS(stmt)
@@ -159,8 +181,8 @@ func NewSMSFromStatement(stmt *signal.SqlStatement) (*SMS, error) {
 		ReadableDate:  intToTime(sms.DateReceived),
 	}
 
-	if sms.Address != nil {
-		xml.Address = *sms.Address
+	if sms.RecipientID != nil {
+		xml.RecipientID = *sms.RecipientID
 	}
 	if sms.Type != nil {
 		xml.Type = translateSMSType(*sms.Type)
@@ -236,8 +258,8 @@ func NewMMSFromStatement(stmt *signal.SqlStatement) (uint64, *MMS, error) {
 	if mms.TransactionID != nil {
 		xml.TrID = *mms.TransactionID
 	}
-	if mms.Address != nil {
-		xml.Address = *mms.Address
+	if mms.RecipientID != nil {
+		xml.RecipientID = *mms.RecipientID
 	}
 	if mms.Expiry != nil {
 		xml.Exp = strconv.FormatUint(*mms.Expiry, 10)

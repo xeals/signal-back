@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -92,9 +93,18 @@ func JSON(bf *types.BackupFile, out io.Writer) error {
 // CSV dumps the raw backup data into a comma-separated value format.
 func CSV(bf *types.BackupFile, message string, out io.Writer) error {
 	ss := make([][]string, 0)
+	recipients := map[uint64]types.Recipient{}
 
 	fns := types.ConsumeFuncs{
 		StatementFunc: func(s *signal.SqlStatement) error {
+			if strings.HasPrefix(*s.Statement, "INSERT INTO recipient") {
+				id, recipient, err := types.NewRecipientFromStatement(s)
+				if err != nil {
+					return errors.Wrap(err, "recipîent statement couldn't be generated")
+				}
+				recipients[id] = *recipient
+			}
+
 			if (*s.Statement)[:15] == "INSERT INTO "+message {
 				ss = append(ss, types.StatementToStringArray(s))
 			}
@@ -104,6 +114,28 @@ func CSV(bf *types.BackupFile, message string, out io.Writer) error {
 
 	if err := bf.Consume(fns); err != nil {
 		return err
+	}
+
+	SMSFieldsCount := len(types.SMSCSVHeaders)
+	MMSFieldsCount := len(types.MMSCSVHeaders)
+
+	for id, line := range ss {
+		var addressFieldIndex int
+		if len(line) == SMSFieldsCount {
+			addressFieldIndex = 2
+		} else if len(line) == MMSFieldsCount {
+			addressFieldIndex = 13
+		} else {
+			continue
+		}
+
+		recipientID, err := strconv.ParseUint(line[addressFieldIndex], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		phone := recipients[recipientID].Phone
+
+		ss[id][addressFieldIndex] = phone
 	}
 
 	w := csv.NewWriter(out)
@@ -141,6 +173,7 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 	var attachmentBuffer bytes.Buffer
 	attachmentEncoder := base64.NewEncoder(base64.StdEncoding, &attachmentBuffer)
 	attachments := map[uint64]attachmentDetails{}
+	recipients := map[uint64]types.Recipient{}
 	smses := &types.SMSes{}
 	mmses := map[uint64]types.MMS{}
 	mmsParts := map[uint64][]types.MMSPart{}
@@ -171,7 +204,15 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 				}
 			}()
 
-			// Only use SMS/MMS statements
+			// Only use SMS/MMS/recipient statements
+			if strings.HasPrefix(*s.Statement, "INSERT INTO recipient") {
+				id, recipient, err := types.NewRecipientFromStatement(s)
+				if err != nil {
+					return errors.Wrap(err, "recipîent statement couldn't be generated")
+				}
+				recipients[id] = *recipient
+			}
+
 			if strings.HasPrefix(*s.Statement, "INSERT INTO sms") {
 				sms, err := types.NewSMSFromStatement(s)
 				if err != nil {
@@ -249,6 +290,21 @@ func XML(bf *types.BackupFile, out io.Writer) error {
 			}
 		}
 		smses.MMS = append(smses.MMS, mms)
+	}
+
+	for id, sms := range smses.SMS {
+		recipientID, err := strconv.ParseUint(sms.RecipientID, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		smses.SMS[id].Address = recipients[recipientID].Phone
+	}
+	for id, mms := range smses.MMS {
+		recipientID, err := strconv.ParseUint(mms.RecipientID, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		smses.MMS[id].Address = recipients[recipientID].Phone
 	}
 
 	smses.Count = len(smses.SMS)
